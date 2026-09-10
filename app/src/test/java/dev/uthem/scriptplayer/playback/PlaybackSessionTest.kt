@@ -48,9 +48,9 @@ class PlaybackSessionTest {
             isPlaying = false
         }
 
-        override fun seekTo(sentenceIndex: Int, withinMs: Long) {
-            seeks += sentenceIndex to withinMs
-            currentIndex = sentenceIndex
+        override fun seekTo(itemIndex: Int, withinMs: Long) {
+            seeks += itemIndex to withinMs
+            currentIndex = itemIndex
             positionMs = withinMs
         }
 
@@ -531,5 +531,37 @@ class PlaybackSessionTest {
         session.saveProgress()
 
         assertEquals("항목 번호가 아니라 문장 번호여야 한다", listOf(3 to 300L), saved)
+    }
+
+    /**
+     * 이어듣기 자리의 문장이 실패하면 미뤄 둔 재생이 영원히 묶였다.
+     *
+     * 붙이기 루프 안에서만 확인해서, 실패로 건너뛴 자리는 한 번도 검사되지 않았다 —
+     * 재생 버튼이 죽은 것처럼 보인다.
+     */
+    @Test
+    fun `이어듣기 자리가 실패해도 재생 버튼이 죽지 않는다`() = runTest {
+        val player = FakePlayer()
+        val session = PlaybackSession(player)
+        session.load(script, startAt = 1, startWithinMs = 500)
+        session.play()
+
+        session.consume(
+            flowOf(SynthesisProgress.Failed(1, "실패"), done(2), done(3)),
+        )
+
+        assertTrue("미뤄 둔 재생이 풀리지 않았다", player.isPlaying)
+    }
+
+    @Test
+    fun `합성이 다 끝난 뒤에 눌러도 재생된다`() = runTest {
+        val player = FakePlayer()
+        val session = PlaybackSession(player)
+        session.load(script, startAt = 2, startWithinMs = 300)
+
+        session.consume(flowOf(done(2), done(3), SynthesisProgress.Complete))
+        session.play()
+
+        assertTrue("합성이 끝난 뒤 재생이 안 됐다", player.isPlaying)
     }
 }

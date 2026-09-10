@@ -208,7 +208,15 @@ fun PlayerRoute(
      * 재생되면 멈출 길이 없다 — 알림을 찾아야 한다. 화면을 끈 뒤의 이어 듣기는 이 화면에
      * 머무는 동안의 일이고, 나가는 것은 "그만 듣겠다" 는 뜻이다.
      */
-    DisposableEffect(session, controller) {
+    /*
+     * 키를 [scriptId] 로만 둔다.
+     *
+     * 처음에 (session, controller) 를 키로 뒀는데, 둘이 서로 다른 시점에 설정되어
+     * session 이 채워질 때 이전 이펙트가 정리되면서 **방금 연결한 컨트롤러를 놓아버렸다.**
+     * 그 뒤로는 play() 가 아무 일도 하지 않는다 — "변환이 끝났는데 재생이 안 된다" 가
+     * 이것이었다. onDispose 안에서 지금 값을 읽으므로 키로 잡을 이유도 없다.
+     */
+    DisposableEffect(scriptId) {
         onDispose {
             session?.stop()
             controller?.release()

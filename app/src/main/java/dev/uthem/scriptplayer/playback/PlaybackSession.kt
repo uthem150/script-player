@@ -118,7 +118,7 @@ class PlaybackSession(
     /** 준비된 것부터 순서대로 붙인다. 가운데가 비면 거기서 멈춘다. */
     private fun drainInOrder() {
         while (true) {
-            val audio = waiting.remove(nextToAppend) ?: return
+            val audio = waiting.remove(nextToAppend) ?: break
             player.append(
                 index = nextToAppend,
                 audio = audio,
@@ -126,8 +126,14 @@ class PlaybackSession(
             )
             nextToAppend++
             _state.value = _state.value.copy(readySentences = nextToAppend - playlistBase)
-            applyPendingSeekIfReady()
         }
+        /*
+         * 붙이기가 끝난 뒤에 한 번 본다.
+         *
+         * 루프 안에서만 보면, 이어듣기 자리의 문장이 **실패**했을 때 그 자리를 영원히
+         * 기다린다 — 미뤄 둔 재생이 풀리지 않아 재생 버튼이 죽는다.
+         */
+        applyPendingSeekIfReady()
     }
 
     /** 이어듣기 자리의 문장이 붙었으면 그 안의 위치로 옮긴다. */
@@ -135,8 +141,11 @@ class PlaybackSession(
         val (index, withinMs) = pendingSeek ?: return
         if (nextToAppend <= index) return
         pendingSeek = null
-        player.seekTo(index - playlistBase, withinMs)
-        _state.value = _state.value.copy(currentIndex = index)
+        // 붙은 것이 없으면 갈 자리도 없다 — 그래도 미뤄 둔 재생은 풀어 준다
+        if (player.itemCount > 0) {
+            player.seekTo(index - playlistBase, withinMs)
+            _state.value = _state.value.copy(currentIndex = index)
+        }
         if (playWhenReady) {
             playWhenReady = false
             play()
