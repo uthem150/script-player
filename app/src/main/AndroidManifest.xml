@@ -7,6 +7,18 @@
       필요 없다는 것을 매니페스트로 못 박아 둔다.
     -->
 
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- 알림이 안 보이면 잠금화면 컨트롤을 확인할 수 없다 (Android 13+ 는 런타임 요청) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- 설치된 TTS 엔진을 조회하려면 이 쿼리가 있어야 한다 (Android 11+ 패키지 가시성) -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="true"
         android:label="@string/app_name"
@@ -22,6 +34,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- 1단계 검증용. 실측이 끝나면 실제 PlaybackService 로 바뀐다. -->
+        <service
+            android:name=".spike.PlaybackProbeService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>
