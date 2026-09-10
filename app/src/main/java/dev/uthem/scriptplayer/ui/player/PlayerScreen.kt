@@ -131,7 +131,7 @@ private fun SynthesisBar(ready: Int, total: Int) {
         verticalArrangement = Arrangement.spacedBy(Space.x1),
     ) {
         Text(
-            "소리 준비 중 · $ready / $total 문장",
+            if (ready == 0) "소리 준비 중 — 듣던 자리부터 만듭니다" else "소리 준비 중 · $ready / $total 문장",
             style = MaterialTheme.typography.bodySmall,
             color = AppTheme.colors.textSecondary,
         )
@@ -194,7 +194,13 @@ private fun ScriptBody(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = Space.x4, vertical = Space.x2),
+            // 오른쪽을 조금 더 비운다 — 손잡이가 글자 위에 얹히면 둘 다 읽기 어렵다
+            contentPadding = PaddingValues(
+                start = Space.x4,
+                end = Space.x8,
+                top = Space.x2,
+                bottom = Space.x2,
+            ),
             verticalArrangement = Arrangement.spacedBy(Space.x2),
         ) {
             itemsIndexed(state.sentences, key = { index, _ -> index }) { index, sentence ->
@@ -207,6 +213,13 @@ private fun ScriptBody(
                 )
             }
         }
+
+        ScriptScrollbar(
+            listState = listState,
+            sentenceCount = state.sentences.size,
+            playingIndex = state.currentIndex,
+            modifier = Modifier.align(Alignment.CenterEnd),
+        )
 
         // 따라가기가 꺼져 있을 때만 낸다. 늘 띄우면 본문을 가린다
         if (!following) {

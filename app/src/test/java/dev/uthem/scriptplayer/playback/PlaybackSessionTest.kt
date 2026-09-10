@@ -83,16 +83,34 @@ class PlaybackSessionTest {
         assertTrue("어림 길이가 잡혀야 한다", session.state.value.totalMs > 0)
     }
 
+    /**
+     * 실기기에서 나온 불만.
+     *
+     * 처음에는 첫 문장이 붙으면 바로 틀었다. 그런데 대본을 열어보려고 카드를 누른
+     * 사람에게 갑자기 소리가 터졌다 — 시작은 사용자가 정해야 한다.
+     */
     @Test
-    fun `첫 문장이 붙으면 바로 재생을 시작한다`() = runTest {
+    fun `대본을 열어도 스스로 재생하지 않는다`() = runTest {
         val player = FakePlayer()
         val session = PlaybackSession(player)
         session.load(script)
 
+        session.consume(flowOf(done(0), done(1), done(2), done(3)))
+
+        assertFalse("누르지 않았는데 재생됐다", player.isPlaying)
+        assertEquals(listOf(0, 1, 2, 3), player.appended)
+    }
+
+    @Test
+    fun `재생을 누르면 그때 시작한다`() = runTest {
+        val player = FakePlayer()
+        val session = PlaybackSession(player)
+        session.load(script)
         session.consume(flowOf(done(0)))
 
-        assertTrue("첫 문장에서 재생이 시작돼야 한다", player.isPlaying)
-        assertEquals(listOf(0), player.appended)
+        session.play()
+
+        assertTrue(player.isPlaying)
     }
 
     /**
@@ -292,43 +310,226 @@ class PlaybackSessionTest {
      * 20번 문장부터 들어야 하는데 0번이 붙는 순간 재생하면 이어듣기를 저장해 둔 의미가
      * 없다 — 처음부터 다시 듣게 된다. 그 문장이 붙을 때까지 기다려야 한다.
      */
+    /**
+     * 이어듣기 자리가 아직 안 붙었는데 재생을 누르면, 그 문장이 올 때까지 미룬다.
+     * 지금 틀면 0번부터 나가는데 그것은 듣던 자리로 돌아가려던 것과 어긋난다.
+     */
     @Test
-    fun `이어듣기 자리가 남아 있으면 그때까지 재생하지 않는다`() = runTest {
+    fun `이어듣기 자리가 준비되면 미뤄 둔 재생이 시작된다`() = runTest {
         val player = FakePlayer()
         val session = PlaybackSession(player)
         session.load(script, startAt = 2, startWithinMs = 700)
 
         session.consume(flowOf(done(0)))
+        session.play()
         assertFalse("아직 그 문장이 안 붙었는데 재생했다", player.isPlaying)
 
         session.consume(flowOf(done(1), done(2)))
-        assertTrue("그 문장이 붙었으니 재생해야 한다", player.isPlaying)
-        assertEquals(2 to 700L, player.seeks.last())
+        assertTrue("그 문장이 붙었으니 시작해야 한다", player.isPlaying)
+        // 목록이 2번 문장부터 시작하므로 그 문장은 항목 0번이다
+        assertEquals(0 to 700L, player.seeks.last())
+        assertEquals("화면에는 문장 번호로 보여야 한다", 2, session.state.value.currentIndex)
     }
 
     @Test
-    fun `이어듣기 자리가 없으면 첫 문장에서 바로 재생한다`() = runTest {
+    fun `미뤄 둔 재생을 정지로 거둔다`() = runTest {
+        val player = FakePlayer()
+        val session = PlaybackSession(player)
+        session.load(script, startAt = 2)
+        session.consume(flowOf(done(0)))
+        session.play()
+
+        session.pause()
+        session.consume(flowOf(done(1), done(2)))
+
+        assertFalse("정지를 눌렀는데 잠시 뒤 켜졌다", player.isPlaying)
+    }
+
+    @Test
+    fun `이어듣기 자리가 없으면 누른 즉시 재생한다`() = runTest {
         val player = FakePlayer()
         val session = PlaybackSession(player)
         session.load(script, startAt = 0, startWithinMs = 0)
-
         session.consume(flowOf(done(0)))
+
+        session.play()
 
         assertTrue(player.isPlaying)
         assertTrue("옮길 자리가 없으니 시크도 없다", player.seeks.isEmpty())
     }
 
     @Test
-    fun `이어듣기 자리가 실패한 문장이면 뒤 문장에서 재생을 시작한다`() = runTest {
+    fun `이어듣기 자리가 실패한 문장이어도 미뤄 둔 재생이 시작된다`() = runTest {
         val player = FakePlayer()
         val session = PlaybackSession(player)
         session.load(script, startAt = 1, startWithinMs = 500)
+        session.play()
 
         session.consume(
             flowOf(done(0), SynthesisProgress.Failed(1, "실패"), done(2)),
         )
 
-        // 1번이 없으니 그 자리로 갈 수 없다 — 그래도 재생은 시작돼야 한다
-        assertTrue("실패한 자리에서 멈춰 버렸다", player.isPlaying)
+        assertTrue("실패한 자리에서 미뤄 둔 재생이 묶여 버렸다", player.isPlaying)
+    }
+
+    /**
+     * 실기기에서 나온 회귀.
+     *
+     * 이어듣기를 고칠 때 자동재생 조건을 `itemCount == 1` 에서 `>= 1` 로 바꿨더니, 합성이
+     * 끝난 문장이 올 때마다 "재생 중이 아니면 재생" 이 다시 걸렸다. 합성이 재생보다
+     * 33배 빠르니 정지를 눌러도 곧바로 다음 문장이 도착해 다시 켜졌다 —
+     * 정지가 아예 안 되는 것처럼 보였다.
+     */
+    @Test
+    fun `한 번 재생을 시작한 뒤에는 스스로 다시 켜지 않는다`() = runTest {
+        val player = FakePlayer()
+        val session = PlaybackSession(player)
+        session.load(script)
+
+        session.consume(flowOf(done(0)))
+        session.play()
+        assertTrue(player.isPlaying)
+
+        session.pause()
+        assertFalse(player.isPlaying)
+
+        // 뒤 문장이 합성되어 들어와도 다시 켜지지 않아야 한다
+        session.consume(flowOf(done(1), done(2), done(3)))
+        assertFalse("합성이 들어오면서 재생이 되살아났다", player.isPlaying)
+    }
+
+    /**
+     * 재생기의 실제 위치를 따라가야 한다.
+     *
+     * 문장을 자동으로 넘길 때 화면이 그것을 모르면 하이라이트가 첫 문장에 머문다.
+     * 에어팟으로 정지했을 때 화면이 모르는 것도 같은 원인이다.
+     */
+    @Test
+    fun `재생기의 실제 문장과 재생 여부를 따라간다`() = runTest {
+        val player = FakePlayer()
+        val session = PlaybackSession(player)
+        session.load(script)
+        session.consume(flowOf(done(0), done(1), done(2)))
+        session.play()
+
+        // 재생기가 스스로 2번 문장으로 넘어갔다
+        player.currentIndex = 2
+        player.positionMs = 400
+        session.syncFromPlayer()
+
+        assertEquals(2, session.state.value.currentIndex)
+        assertTrue(session.state.value.playing)
+
+        // 에어팟으로 정지했다 — 우리가 부른 것이 아니다
+        player.isPlaying = false
+        session.syncFromPlayer()
+
+        assertFalse("바깥에서 멈춘 것을 따라가지 못했다", session.state.value.playing)
+    }
+
+    /** 화면을 떠나면 멈춰야 한다. 보이는 컨트롤이 없는 채로 소리가 나면 멈출 길이 없다. */
+    @Test
+    fun `멈추기를 부르면 재생을 세우고 진도를 적는다`() = runTest {
+        val player = FakePlayer()
+        val saved = mutableListOf<Pair<Int, Long>>()
+        val session = PlaybackSession(player) { index, position -> saved += index to position }
+        session.load(script)
+        session.consume(flowOf(done(0)))
+        session.play()
+        player.currentIndex = 0
+        player.positionMs = 1_200
+
+        session.stop()
+
+        assertFalse(player.isPlaying)
+        assertEquals(listOf(0 to 1_200L), saved)
+    }
+
+    @Test
+    fun `멈춘 뒤에 합성이 들어와도 다시 켜지지 않는다`() = runTest {
+        val player = FakePlayer()
+        val session = PlaybackSession(player)
+        session.load(script)
+        session.consume(flowOf(done(0)))
+        session.play()
+        session.stop()
+
+        session.consume(flowOf(done(1)))
+
+        assertFalse(player.isPlaying)
+    }
+
+    /**
+     * 성능의 요점.
+     *
+     * 이어듣기로 열면 목록을 **듣던 문장부터** 만든다. 0번부터 채우면 그 자리에 닿기까지
+     * 앞의 것을 다 합성해야 하는데, 실기기에서 그 대기가 길다는 불만이 나왔다.
+     */
+    @Test
+    fun `이어듣기로 열면 목록이 듣던 문장부터 시작한다`() = runTest {
+        val player = FakePlayer()
+        val session = PlaybackSession(player)
+        session.load(script, startAt = 2)
+
+        session.consume(flowOf(done(2), done(3)))
+
+        assertEquals("듣던 문장이 먼저 붙어야 한다", listOf(2, 3), player.appended)
+    }
+
+    @Test
+    fun `목록 시작보다 앞 문장은 아직 붙이지 않는다`() = runTest {
+        val player = FakePlayer()
+        val session = PlaybackSession(player)
+        session.load(script, startAt = 2)
+
+        session.consume(flowOf(done(0), done(1)))
+
+        assertTrue("앞 문장이 목록에 붙었다", player.appended.isEmpty())
+    }
+
+    /** 앞으로 돌아갈 수 있어야 한다. 이미 만들어 둔 소리를 다시 붙이므로 합성은 없다. */
+    @Test
+    fun `앞 문장으로 가면 목록을 다시 만든다`() = runTest {
+        val player = FakePlayer()
+        val session = PlaybackSession(player)
+        session.load(script, startAt = 2)
+        session.consume(flowOf(done(2), done(3), done(0), done(1)))
+        assertEquals(listOf(2, 3), player.appended)
+
+        session.seekToSentence(0)
+
+        assertEquals("0번부터 다시 붙어야 한다", listOf(0, 1, 2, 3), player.appended)
+        assertEquals(0 to 0L, player.seeks.last())
+        assertEquals(0, session.state.value.currentIndex)
+    }
+
+    @Test
+    fun `재생기 항목 번호에 목록 시작을 더해 문장 번호를 낸다`() = runTest {
+        val player = FakePlayer()
+        val session = PlaybackSession(player)
+        session.load(script, startAt = 2)
+        session.consume(flowOf(done(2), done(3)))
+
+        // 재생기는 항목 1번(= 문장 3번)을 재생 중이다
+        player.currentIndex = 1
+        player.isPlaying = true
+        session.syncFromPlayer()
+
+        assertEquals(3, session.state.value.currentIndex)
+    }
+
+    @Test
+    fun `이어듣기 지점을 문장 번호로 적는다`() = runTest {
+        val player = FakePlayer()
+        val saved = mutableListOf<Pair<Int, Long>>()
+        val session = PlaybackSession(player) { index, position -> saved += index to position }
+        session.load(script, startAt = 2)
+        session.consume(flowOf(done(2), done(3)))
+        player.currentIndex = 1
+        player.positionMs = 300
+
+        session.saveProgress()
+
+        assertEquals("항목 번호가 아니라 문장 번호여야 한다", listOf(3 to 300L), saved)
     }
 }

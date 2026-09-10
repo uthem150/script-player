@@ -55,14 +55,14 @@ class Media3PlayerController(private val controller: MediaController) : PlayerCo
 
     override fun pause() = controller.pause()
 
-    override fun seekTo(sentenceIndex: Int, withinMs: Long) {
+    override fun seekTo(itemIndex: Int, withinMs: Long) {
         /*
-         * 아직 붙지 않은 문장으로는 갈 수 없다.
+         * 아직 붙지 않은 항목으로는 갈 수 없다.
          *
          * 합성이 재생보다 훨씬 빠르므로 드문 일이지만, 시크바를 끝까지 끌면 일어난다.
          * 그때 범위 밖으로 부르면 Media3 가 던진다 — 붙어 있는 마지막으로 자른다.
          */
-        val target = sentenceIndex.coerceIn(0, maxOf(0, controller.mediaItemCount - 1))
+        val target = itemIndex.coerceIn(0, maxOf(0, controller.mediaItemCount - 1))
         controller.seekTo(target, withinMs.coerceAtLeast(0))
     }
 

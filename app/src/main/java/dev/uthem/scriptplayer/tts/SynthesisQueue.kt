@@ -40,8 +40,17 @@ class SynthesisQueue(private val synthesizer: Synthesizer) {
         script: ParsedScript,
         voiceBySpeaker: Map<String, SynthesisRequest>,
         defaultVoice: SynthesisRequest,
+        /**
+         * 어느 문장부터 만들지.
+         *
+         * 이어듣기로 여는 경우 듣던 문장이 가장 급하다. 0번부터 만들면 그 자리에 닿기까지
+         * 앞의 것을 다 기다려야 한다 — 80번째부터 듣던 대본이면 10초를 넘긴다.
+         * 여기서부터 끝까지 먼저 만들고, 앞부분은 그 뒤에 채운다.
+         */
+        startAt: Int = 0,
     ): Flow<SynthesisProgress> = flow {
-        script.sentences.forEach { sentence ->
+        orderedFrom(script.sentences.size, startAt).forEach { index ->
+            val sentence = script.sentences[index]
             val settings = sentence.speakerId?.let { voiceBySpeaker[it] } ?: defaultVoice
             val request = SynthesisRequest(
                 text = sentence.text,
@@ -63,4 +72,15 @@ class SynthesisQueue(private val synthesizer: Synthesizer) {
         }
         emit(SynthesisProgress.Complete)
     }
+}
+
+/**
+ * [startAt] 부터 끝까지, 그다음 처음부터 [startAt] 앞까지.
+ *
+ * 앞부분을 버리지 않는 이유는 사용자가 뒤로 돌아갈 수 있어서다 — 급하지 않을 뿐이다.
+ */
+internal fun orderedFrom(count: Int, startAt: Int): List<Int> {
+    if (count <= 0) return emptyList()
+    val begin = startAt.coerceIn(0, count - 1)
+    return (begin until count) + (0 until begin)
 }

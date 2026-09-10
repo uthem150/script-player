@@ -10,7 +10,12 @@ import java.io.File
  * 여기서 못 박을 수 있고 버그는 대개 그쪽에 있다.
  */
 interface PlayerController {
-    /** 지금 재생 중인 문장. 아직 아무것도 없으면 0. */
+    /**
+     * 지금 재생 중인 **재생목록 항목 번호**. 아직 아무것도 없으면 0.
+     *
+     * 문장 번호와 다를 수 있다 — 이어듣기로 열면 재생목록이 그 문장부터 시작하기 때문이다.
+     * 둘을 잇는 것은 [PlaybackSession] 이 한다.
+     */
     val currentIndex: Int
 
     /** 지금 문장 안에서의 위치. */
@@ -41,8 +46,8 @@ interface PlayerController {
 
     fun pause()
 
-    /** 특정 문장의 특정 위치로 옮긴다. */
-    fun seekTo(sentenceIndex: Int, withinMs: Long)
+    /** 특정 **재생목록 항목**의 특정 위치로 옮긴다. */
+    fun seekTo(itemIndex: Int, withinMs: Long)
 
     /**
      * 재생 속도와 음높이.

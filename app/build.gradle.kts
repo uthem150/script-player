@@ -28,8 +28,8 @@ android {
         // 컴파일은 37 로 하되 런타임 동작 옵트인은 36 에 둔다 —
         // 새 제약을 한꺼번에 떠안지 않고, 재생·포그라운드 서비스가 선 뒤에 올린다.
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.0.0"
+        versionCode = 3
+        versionName = "1.1.0"
     }
 
     buildTypes {

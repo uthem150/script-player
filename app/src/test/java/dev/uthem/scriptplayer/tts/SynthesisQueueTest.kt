@@ -149,4 +149,32 @@ class SynthesisQueueTest {
 
         assertEquals("첫 문장이 나올 때 요청은 한 건이어야 한다", 1, seenAfterFirst)
     }
+
+    @Test
+    fun `이어듣기 지점부터 만들고 앞부분은 뒤에 채운다`() = runTest {
+        val script = parseScript("하나. 둘. 셋. 넷. 다섯.")
+        val fake = FakeSynthesizer()
+
+        val progress = SynthesisQueue(fake)
+            .synthesize(script, emptyMap(), defaultVoice, startAt = 3)
+            .toList()
+
+        assertEquals(
+            listOf(3, 4, 0, 1, 2),
+            progress.filterIsInstance<SynthesisProgress.Done>().map { it.index },
+        )
+    }
+
+    @Test
+    fun `합성 순서를 낸다`() {
+        assertEquals(listOf(2, 3, 4, 0, 1), orderedFrom(count = 5, startAt = 2))
+        assertEquals(listOf(0, 1, 2), orderedFrom(count = 3, startAt = 0))
+        assertEquals(emptyList<Int>(), orderedFrom(count = 0, startAt = 0))
+    }
+
+    @Test
+    fun `범위를 넘는 시작점은 마지막으로 자른다`() {
+        assertEquals(listOf(2, 0, 1), orderedFrom(count = 3, startAt = 99))
+        assertEquals(listOf(0, 1, 2), orderedFrom(count = 3, startAt = -5))
+    }
 }

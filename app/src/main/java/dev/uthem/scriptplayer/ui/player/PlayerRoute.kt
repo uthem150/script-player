@@ -34,6 +34,8 @@ import dev.uthem.scriptplayer.tts.offlineKorean
 import dev.uthem.scriptplayer.tts.wavDurationMs
 import dev.uthem.scriptplayer.ui.voice.NoVoiceScreen
 import dev.uthem.scriptplayer.ui.voice.rememberInstallVoiceAction
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -62,6 +64,8 @@ fun PlayerRoute(
     var sentences by remember { mutableStateOf<List<PlayerSentence>>(emptyList()) }
     var title by remember { mutableStateOf("") }
     var session by remember { mutableStateOf<PlaybackSession?>(null) }
+    // 놓아주려면 들고 있어야 한다. 안 놓으면 세션 연결이 새고 알림이 남는다
+    var controller by remember { mutableStateOf<MediaController?>(null) }
     var uiState by remember { mutableStateOf(PlayerUiState()) }
     val timings = remember { mutableMapOf<Int, List<WordTiming>>() }
     val durations = remember { mutableMapOf<Int, Long>() }
@@ -80,21 +84,33 @@ fun PlayerRoute(
             script.speakers.firstOrNull { speaker -> speaker.id == id }?.label
         }) }
 
+        /*
+         * TTS 엔진 열기와 서비스 연결을 나란히 한다.
+         *
+         * 둘은 서로를 기다릴 이유가 없는데 순서대로 하면 각자의 시간이 그대로 더해진다 —
+         * 엔진 초기화가 1~2초, 세션 연결이 0.5초쯤이라 그 차이가 눈에 띈다.
+         */
         val synthesizer = AndroidSynthesizer(context, container.audioCache)
-        val voices = if (synthesizer.open().isSuccess) {
-            synthesizer.availableVoices().offlineKorean()
-        } else {
-            emptyList()
+        val (voices, connected) = coroutineScope {
+            val opening = async {
+                if (synthesizer.open().isSuccess) {
+                    synthesizer.availableVoices().offlineKorean()
+                } else {
+                    emptyList()
+                }
+            }
+            val connecting = async { connectToService(context) }
+            opening.await() to connecting.await()
         }
-        val controller = if (voices.isNotEmpty()) connectToService(context) else null
-        if (voices.isEmpty() || controller == null) {
+        controller = connected
+        if (voices.isEmpty() || connected == null) {
             synthesizer.close()
             noVoice = true
             return@LaunchedEffect
         }
 
         val progress = container.scripts.progressOf(scriptId)
-        val active = PlaybackSession(Media3PlayerController(controller)) { index, positionMs ->
+        val active = PlaybackSession(Media3PlayerController(connected)) { index, positionMs ->
             /*
              * 이어듣기 지점을 적는다.
              *
@@ -125,7 +141,13 @@ fun PlayerRoute(
         val fallback = SynthesisRequest(text = "", voiceName = voices.first().name)
 
         SynthesisQueue(synthesizer)
-            .synthesize(script, speakerVoices, fallback)
+            .synthesize(
+                script = script,
+                voiceBySpeaker = speakerVoices,
+                defaultVoice = fallback,
+                // 듣던 문장을 가장 먼저 만든다 — 그 자리에 닿기까지 앞의 것을 기다리지 않게
+                startAt = progress.sentenceIndex,
+            )
             .onEach { event ->
                 if (event !is SynthesisProgress.Done) return@onEach
                 /*
@@ -156,6 +178,13 @@ fun PlayerRoute(
     LaunchedEffect(session, sentences, title) {
         val active = session ?: return@LaunchedEffect
         while (true) {
+            /*
+             * 재생기의 실제 문장과 재생 여부를 먼저 당겨 온다.
+             *
+             * 이것을 빼면 문장이 자동으로 넘어가도 하이라이트가 첫 문장에 머물고,
+             * 에어팟으로 정지한 것도 화면이 모른다 — 실기기에서 둘 다 나왔다.
+             */
+            active.syncFromPlayer()
             val playback = active.state.value
             uiState = PlayerUiState(
                 title = title,
@@ -172,9 +201,18 @@ fun PlayerRoute(
         }
     }
 
-    // 화면을 떠날 때 들은 자리를 적는다
-    DisposableEffect(session) {
-        onDispose { session?.saveProgress() }
+    /*
+     * 화면을 떠나면 멈추고 놓아준다.
+     *
+     * 진도만 적고 두었더니 보관함으로 나가도 소리가 계속 났다. 보이는 컨트롤이 없는 채로
+     * 재생되면 멈출 길이 없다 — 알림을 찾아야 한다. 화면을 끈 뒤의 이어 듣기는 이 화면에
+     * 머무는 동안의 일이고, 나가는 것은 "그만 듣겠다" 는 뜻이다.
+     */
+    DisposableEffect(session, controller) {
+        onDispose {
+            session?.stop()
+            controller?.release()
+        }
     }
 
     if (noVoice) {
