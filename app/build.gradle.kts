@@ -63,6 +63,66 @@ tasks.named("check") {
     dependsOn("verifyRoborazziDebug")
 }
 
+/*
+ * README 의 화면 블록을 다시 쓴다.
+ *
+ * 스크린샷을 따로 복사하지 않고 **기준 이미지를 그대로 가리킨다.** 사본을 두면 기준이
+ * 갱신됐는데 README 만 옛 사진인 상태가 생긴다. 같은 파일을 보면 그 상태가 아예 없다.
+ *
+ * 여기 실리는 사진은 통과한 테스트의 산출물이라, 정의상 깨지지 않은 화면이다.
+ * 마커 밖의 글은 사람이 쓴다 — 생성기가 설명을 덮지 않게 하는 경계다.
+ */
+private val readmeScreens = listOf(
+    Triple("색 토큰", "color-light.png", "color-dark.png"),
+    Triple("글자 눈금", "type-light.png", "type-dark.png"),
+)
+
+tasks.register("updateReadme") {
+    description = "스크린샷을 다시 찍고 README 의 화면 블록을 갱신한다"
+    dependsOn("recordRoborazziDebug")
+
+    // 설정 캐시를 위해 Project 를 doLast 안에서 건드리지 않는다 — File 만 미리 붙잡는다.
+    val shotsDir = layout.projectDirectory.dir("screenshots").asFile
+    val readme = rootProject.layout.projectDirectory.file("README.md").asFile
+    val relativePrefix = "app/screenshots"
+    val screens = readmeScreens
+
+    doLast {
+        val missing = screens
+            .flatMap { listOf(it.second, it.third) }
+            .filterNot { File(shotsDir, it).isFile }
+        require(missing.isEmpty()) {
+            "기준 이미지가 없습니다: $missing — recordRoborazziDebug 가 이 이름으로 찍는지 확인하세요"
+        }
+
+        val table = buildString {
+            appendLine("| | 밝게 | 어둡게 |")
+            appendLine("| --- | --- | --- |")
+            screens.forEach { (caption, light, dark) ->
+                appendLine(
+                    "| **$caption** " +
+                        "| <img src=\"$relativePrefix/$light\" width=\"240\" alt=\"$caption 밝게\"> " +
+                        "| <img src=\"$relativePrefix/$dark\" width=\"240\" alt=\"$caption 어둡게\"> |",
+                )
+            }
+        }.trimEnd()
+
+        val begin = "<!-- SCREENS:BEGIN -->"
+        val end = "<!-- SCREENS:END -->"
+        val text = readme.readText()
+        val from = text.indexOf(begin)
+        val to = text.indexOf(end)
+        require(from >= 0 && to > from) { "README 에 $begin / $end 마커가 없습니다" }
+
+        readme.writeText(
+            text.substring(0, from + begin.length) +
+                "\n\n" + table + "\n\n" +
+                text.substring(to),
+        )
+        logger.lifecycle("README 화면 블록 갱신: ${screens.size}줄")
+    }
+}
+
 dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.core.ktx)

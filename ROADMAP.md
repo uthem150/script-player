@@ -64,18 +64,24 @@
 
 **완료 조건**
 
-- [ ] 밝게·어둡게 두 테마에서 컴포넌트 카탈로그 PNG 가 기록됨
-- [ ] `./gradlew verifyRoborazziDebug` 가 회귀를 잡아냄 (색을 일부러 바꿔 확인)
-- [ ] `./gradlew updateReadme` 가 README 의 `SCREENS` 블록을 다시 씀
-- [ ] 3계층 중 **어느 컴포넌트도 1·2계층을 직접 참조하지 않음** (테스트로 단언)
+- [x] 밝게·어둡게 두 테마에서 토큰 카탈로그 PNG 가 기록됨 (색·글자 4장)
+- [x] `./gradlew verifyRoborazziDebug` 가 회귀를 잡아냄 (Blue500 을 일부러 틀어 확인)
+- [x] `./gradlew updateReadme` 가 README 의 `SCREENS` 블록을 다시 씀
+- [x] 3계층 중 **어느 컴포넌트도 1·2계층을 직접 참조하지 않음** (소스를 훑는 테스트로 단언)
+- [x] `./gradlew check` 한 줄에 유닛 테스트·스크린샷 회귀·Lint 가 다 묶임
+- [ ] Pretendard 번들
+- [ ] 기본 컴포넌트
 
 **커밋 분할**
 
-1. `feat: 3계층 색 토큰과 테마 이식 (Compass 값 기준)`
-2. `feat: Pretendard 와 폰용 타입 스케일`
-3. `feat: 기본 컴포넌트 7종`
-4. `test: Roborazzi 스크린샷 기록·검증 파이프라인`
-5. `build: README 화면 블록 생성 태스크`
+1. ~~`feat: 3계층 색 토큰과 테마 이식`~~ (창 배경 버그 수정 포함)
+2. ~~`test: Roborazzi 스크린샷 기록·검증 파이프라인`~~
+3. ~~`build: README 화면 블록 생성 태스크`~~
+4. `feat: Pretendard 번들`
+5. `feat: 기본 컴포넌트`
+
+**순서를 바꿨다.** 컴포넌트보다 파이프라인을 먼저 세웠다 — Robolectric 이 SDK 37 과
+붙는지가 이 단계의 위험이었고, 안 붙으면 스크린샷 전략을 손봐야 했다. 붙었다.
 
 ---
 

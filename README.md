@@ -44,9 +44,14 @@
 
 ## 3. 화면
 
+아직 디자인 시스템 토큰뿐입니다. 보관함·재생기·설정 화면이 만들어지는 대로 이 표에 붙습니다.
+
 <!-- SCREENS:BEGIN -->
 
-_아직 없습니다. 2단계에서 스크린샷 파이프라인을 세우면 이 자리가 자동으로 채워집니다._
+| | 밝게 | 어둡게 |
+| --- | --- | --- |
+| **색 토큰** | <img src="app/screenshots/color-light.png" width="240" alt="색 토큰 밝게"> | <img src="app/screenshots/color-dark.png" width="240" alt="색 토큰 어둡게"> |
+| **글자 눈금** | <img src="app/screenshots/type-light.png" width="240" alt="글자 눈금 밝게"> | <img src="app/screenshots/type-dark.png" width="240" alt="글자 눈금 어둡게"> |
 
 <!-- SCREENS:END -->
 
@@ -80,8 +85,16 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 Play Store 를 거치지 않고 APK 를 직접 설치합니다.
 
-`./gradlew check` (유닛 테스트 + 스크린샷 회귀 + 린트) 와 `./gradlew recordRoborazziDebug`
-는 2단계에서 들어옵니다.
+### 검사와 스크린샷
+
+```bash
+./gradlew check                 # 유닛 테스트 + 스크린샷 회귀 + Android Lint
+./gradlew recordRoborazziDebug  # 기준 이미지 다시 찍기 (화면을 의도적으로 바꿨을 때)
+./gradlew updateReadme          # 다시 찍고 위 화면 표까지 갱신
+```
+
+스크린샷은 Robolectric 이 **JVM 에서** 렌더하므로 기기도 에뮬레이터도 필요 없습니다.
+찍기 전에 내용이 실제로 그려졌는지 단언하기 때문에, 깨진 화면이 기준 이미지로 남을 수 없습니다.
 
 ### 걸려 넘어질 자리
 
