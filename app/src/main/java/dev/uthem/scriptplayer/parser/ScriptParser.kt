@@ -7,20 +7,42 @@ package dev.uthem.scriptplayer.parser
  * 위치가 밀려 원문으로 돌아갈 길이 사라진다. 나중에 붙일 수 있는 성질이 아니다.
  */
 fun parseScript(raw: String): ParsedScript {
-    val sentences = keptLines(raw)
-        .flatMap { line -> splitLine(clean(line)) }
-        .mapIndexed { index, piece ->
-            Sentence(
-                index = index,
+    val lines = keptLines(raw).map { describe(it) }
+    val speakers = detectSpeakers(lines)
+    val byLabel = speakers.associateBy { it.label }
+
+    val sentences = mutableListOf<Sentence>()
+    var current: Speaker? = null
+
+    lines.forEach { line ->
+        val speaker = byLabel[line.label]
+        val from = when {
+            // 머리글은 발언이 아니다. 앞 화자를 이어받으면 장 제목이 그 사람 목소리로 읽힌다
+            line.isHeading -> {
+                current = null
+                line.contentStart
+            }
+            speaker != null -> {
+                current = speaker
+                line.afterLabel
+            }
+            // 라벨 없는 줄은 앞 화자를 이어받는다 — 한 발언이 여러 줄로 이어지는 대본이 흔하다
+            else -> line.contentStart
+        }
+
+        splitLine(clean(line.source, from)).forEach { piece ->
+            sentences += Sentence(
+                index = sentences.size,
                 text = piece.text,
-                speakerId = null,
+                speakerId = current?.id,
                 sourceRange = piece.range,
             )
         }
+    }
 
     return ParsedScript(
-        title = titleOf(sentences),
-        speakers = emptyList(),
+        title = titleOf(lines, sentences),
+        speakers = speakers,
         sentences = sentences,
     )
 }
@@ -38,6 +60,18 @@ private data class SourceLine(val text: String, val start: Int)
  * 원문으로 돌아갈 수 있다.
  */
 private class Cleaned(val text: String, val origin: IntArray)
+
+/** 한 줄을 훑어 알아낸 것들. 화자를 세려면 전체를 두 번 봐야 해서 미리 담아 둔다. */
+private class LineInfo(
+    val source: SourceLine,
+    /** 블록 마커(머리글·인용·글머리표) 다음 자리 */
+    val contentStart: Int,
+    val isHeading: Boolean,
+    /** 화자 라벨 후보. 화자로 인정될지는 몇 번 나오는지에 달렸다 */
+    val label: String?,
+    /** 라벨과 콜론 다음 자리 */
+    val afterLabel: Int,
+)
 
 private fun sourceLines(raw: String): List<SourceLine> {
     val lines = mutableListOf<SourceLine>()
@@ -96,14 +130,101 @@ private fun fenceMarker(trimmed: String): String? = when {
     else -> null
 }
 
+// ── 화자 ─────────────────────────────────────────────────────────────────────
+
+private fun describe(line: SourceLine): LineInfo {
+    val contentStart = blockMarkerEnd(line.text)
+    val hit = labelAt(line.text, contentStart)
+    return LineInfo(
+        source = line,
+        contentStart = contentStart,
+        isHeading = isHeading(line.text),
+        label = hit?.label,
+        afterLabel = hit?.after ?: contentStart,
+    )
+}
+
+/**
+ * 같은 라벨이 **두 번 이상** 나올 때만 화자로 인정한다.
+ *
+ * 줄머리의 `이름:` 을 전부 화자로 보면 `참고:`, `결론:`, `주의:` 가 화자가 되어 목소리가
+ * 배정되고, 그 줄이 엉뚱한 사람 목소리로 읽힌다. 이 규칙 하나가 오검출을 거의 다 막는다.
+ *
+ * 대가는 한 줄만 말하는 사람의 이름이 소리로 나오는 것이다. 반대쪽(모든 콜론을 화자로 보기)은
+ * `참고:` 에 다른 목소리를 배정해 더 이상하게 들리므로, 이쪽을 택했다.
+ *
+ * [Speaker.id] 는 나온 순서로 붙인다. 라벨을 그대로 쓰면 "진행자" 를 "호스트" 로 고쳤을 때
+ * 음성 배정과 합성 캐시가 전부 풀린다.
+ */
+private fun detectSpeakers(lines: List<LineInfo>): List<Speaker> {
+    val counts = mutableMapOf<String, Int>()
+    val order = mutableListOf<String>()
+
+    lines.forEach { line ->
+        val label = line.label ?: return@forEach
+        if (counts.put(label, (counts[label] ?: 0) + 1) == null) order += label
+    }
+
+    return order
+        .filter { (counts[it] ?: 0) >= 2 }
+        .mapIndexed { index, label -> Speaker(id = "s$index", label = label) }
+}
+
+private class LabelHit(val label: String, val after: Int)
+
+/** 이름에 쓸 수 있는 글자. 쉼표나 마침표가 끼면 라벨이 아니라 문장이다. */
+private fun Char.isNameChar() = isLetterOrDigit() || isWhitespace() || this in "·_-"
+
+/**
+ * 줄머리에서 `이름:` 또는 `**이름**:` 을 찾는다.
+ *
+ * 콜론 뒤에는 공백이나 줄 끝이 와야 한다 — `10:30` 같은 것을 라벨로 보지 않기 위해서다.
+ * 이름은 12자까지. 그보다 길면 사람 이름이 아니라 문장이다.
+ */
+private fun labelAt(text: String, from: Int): LabelHit? {
+    var at = from
+    val bold = text.startsWith("**", at)
+    if (bold) at += 2
+
+    val nameStart = at
+    var nameEnd = -1
+    var colonAt = -1
+    var scanned = 0
+
+    while (at < text.length) {
+        if (bold && text.startsWith("**", at)) {
+            if (nameEnd < 0) nameEnd = at
+            at += 2
+            continue
+        }
+        val char = text[at]
+        if (char == ':' || char == '：') {
+            colonAt = at
+            if (nameEnd < 0) nameEnd = at
+            break
+        }
+        if (!char.isNameChar()) return null
+        at++
+        if (++scanned > 20) return null
+    }
+
+    if (colonAt < 0) return null
+    val name = text.substring(nameStart, nameEnd).trim()
+    if (name.isEmpty() || name.length > 12 || name.none { it.isLetter() }) return null
+
+    val next = text.getOrNull(colonAt + 1)
+    if (next != null && !next.isWhitespace()) return null
+    return LabelHit(name, skipSpaces(text, colonAt + 1))
+}
+
 // ── 마크다운 벗기기 ──────────────────────────────────────────────────────────
 
-private fun clean(line: SourceLine): Cleaned {
+private fun clean(line: SourceLine, from: Int): Cleaned {
     val text = line.text
     val builder = StringBuilder()
     val origin = ArrayList<Int>(text.length)
 
-    var at = blockMarkerEnd(text)
+    var at = from
     while (at < text.length) {
         val char = text[at]
         when {
@@ -148,6 +269,14 @@ private fun clean(line: SourceLine): Cleaned {
     return Cleaned(builder.toString(), origin.toIntArray())
 }
 
+private fun isHeading(text: String): Boolean {
+    val at = skipSpaces(text, 0)
+    if (at >= text.length || text[at] != '#') return false
+    var hashEnd = at
+    while (hashEnd < text.length && text[hashEnd] == '#') hashEnd++
+    return hashEnd - at <= 6 && (hashEnd >= text.length || text[hashEnd].isWhitespace())
+}
+
 /**
  * 줄머리의 블록 마커가 끝나는 자리.
  *
@@ -164,16 +293,14 @@ private fun blockMarkerEnd(text: String): Int {
 }
 
 private fun oneBlockMarkerEnd(text: String, from: Int): Int {
-    var at = from
-    while (at < text.length && text[at].isWhitespace()) at++
+    var at = skipSpaces(text, from)
     if (at >= text.length) return at
 
     // 머리글 — # 은 여섯 개까지, 뒤에 공백이 와야 한다
     if (text[at] == '#') {
         var hashEnd = at
         while (hashEnd < text.length && text[hashEnd] == '#') hashEnd++
-        val hashes = hashEnd - at
-        if (hashes <= 6 && (hashEnd >= text.length || text[hashEnd].isWhitespace())) {
+        if (hashEnd - at <= 6 && (hashEnd >= text.length || text[hashEnd].isWhitespace())) {
             return skipSpaces(text, hashEnd)
         }
     }
@@ -280,8 +407,20 @@ private fun MutableList<Piece>.addTrimmed(line: Cleaned, from: Int, to: Int) {
     this += Piece(content, line.origin[begin]..line.origin[end - 1])
 }
 
-/** 제목은 첫 문장 앞부분으로 둔다. 머리글이 있으면 그것을 쓰는 것은 다음 단계에서. */
-private fun titleOf(sentences: List<Sentence>): String {
-    val first = sentences.firstOrNull()?.text ?: return ""
-    return if (first.length <= 40) first else first.take(39).trimEnd() + "…"
+/**
+ * 제목.
+ *
+ * 첫 머리글을 쓴다. 없으면 첫 문장 앞부분으로 둔다 — 목록에서 무엇인지 알아볼 수만 있으면
+ * 되고, 사용자가 고칠 수 있다.
+ */
+private fun titleOf(lines: List<LineInfo>, sentences: List<Sentence>): String {
+    val heading = lines.firstOrNull { it.isHeading }
+    if (heading != null) {
+        val text = clean(heading.source, heading.contentStart).text.trim()
+        if (text.isNotEmpty()) return text.ellipsize(60)
+    }
+    return sentences.firstOrNull()?.text?.ellipsize(40) ?: ""
 }
+
+private fun String.ellipsize(limit: Int) =
+    if (length <= limit) this else take(limit - 1).trimEnd() + "…"
