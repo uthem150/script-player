@@ -3,8 +3,12 @@
 - 작성일: 2026-09-10
 - 저장소: `RnD/script-player` (github.com/uthem150/script-player)
 - 패키지: `dev.uthem.scriptplayer`
-- 대상: 안드로이드 (minSdk 26, targetSdk 35)
-- 스택: Kotlin, Jetpack Compose, Media3, Room, Roborazzi
+- 대상: 안드로이드 (minSdk 26, compileSdk·targetSdk 36)
+- 스택: Kotlin 2.4.20, AGP 9.4.0, Compose BOM 2026.09.00, Media3 1.11.0,
+  Room 2.8.5, Roborazzi 1.74.0, Robolectric 4.16.1
+
+minSdk 26 은 타협이 아니라 요구다 — `UtteranceProgressListener.onRangeStart` 가
+API 26 부터라, 단어 타이밍(§5.2)이 이 아래에서는 아예 오지 않는다.
 
 ---
 
@@ -29,7 +33,8 @@
 - 화면 끄고 백그라운드 재생, 잠금화면·알림 컨트롤, 에어팟·블루투스 버튼
 - 재생 중 실시간 속도·음높이 조절
 - 임의 지점 시크, 문장 단위 이전/다음, 이어듣기
-- 현재 문장 하이라이트 + 자동 스크롤
+- **본문에서 아무 단어나 탭하면 그 지점부터 이어서 재생**
+- 현재 문장 하이라이트 + 자동 스크롤, 단어 하이라이트 (엔진이 타이밍을 줄 때)
 - 대본 추가·수정·이름 변경·삭제
 - 화자별 음성·음높이 배정
 
@@ -255,8 +260,16 @@ interface Synthesizer {
     /** 이 기기에서 쓸 수 있는 음성. 오프라인 가능한 것만. */
     suspend fun availableVoices(): List<VoiceInfo>
     /** 문장 하나를 캐시에 합성. 이미 있으면 그대로 반환. */
-    suspend fun synthesize(request: SynthesisRequest): Result<File>
+    suspend fun synthesize(request: SynthesisRequest): Result<SynthesizedSentence>
 }
+
+data class SynthesizedSentence(
+    val audio: File,
+    /** 글자 오프셋 → 시각. 엔진이 알려주지 않으면 빈 목록 (§5.2 단어 타이밍) */
+    val wordTimings: List<WordTiming>,
+)
+
+data class WordTiming(val charStart: Int, val charEnd: Int, val atMs: Long)
 
 data class SynthesisRequest(
     val text: String,
@@ -289,13 +302,34 @@ voice.locale.language == "ko" &&
 
 ```kotlin
 sealed interface SynthesisProgress {
-    data class Done(val index: Int, val file: File) : SynthesisProgress
+    data class Done(val index: Int, val sentence: SynthesizedSentence) : SynthesisProgress
     data class Failed(val index: Int, val cause: Throwable) : SynthesisProgress
     data object Complete : SynthesisProgress
 }
 ```
 
 `Done` 이 나오는 즉시 `playback/` 이 플레이리스트에 붙인다. 이게 스트리밍 시작의 전부다.
+
+**단어 타이밍.** `UtteranceProgressListener.onRangeStart(utteranceId, start, end, frame)` 가
+합성 중에 지금 읽는 구간의 글자 오프셋과 **생성된 오디오의 프레임 위치**를 알려준다
+(API 26+, `synthesizeToFile` 에도 온다). 이걸 모으면 문장 안의 글자 오프셋 → 시각 표가 된다.
+
+```kotlin
+atMs = frame * 1000L / sampleRate
+```
+
+이 표 하나가 두 가지를 가능하게 한다.
+
+1. **아무 단어나 탭해서 그 지점부터 재생** (§5.6) — 비례 추정이 아니라 실제 값이다
+2. **재생 중 현재 단어 하이라이트** — 문장 하이라이트 위에 얹는다
+
+`sampleRate` 는 합성된 WAV 의 RIFF 헤더에서 읽는다. 엔진이 알려주는 값을 믿지 않는다 —
+음성마다 다를 수 있다.
+
+**모든 엔진이 `onRangeStart` 를 보내지는 않는다.** 안 오면 `wordTimings` 가 빈 목록이 되고,
+탭 지점은 **글자 비율 × 문장 길이**로 추정한다. 문장이 200자 이하라 오차는 단어 한둘
+수준이고, 단어 하이라이트는 이때 끄고 문장 하이라이트만 남긴다. 정확도가 떨어질 뿐
+기능이 사라지지는 않게 한다.
 
 ### 5.3 `playback/` — Media3
 
@@ -384,7 +418,9 @@ player.playbackParameters = PlaybackParameters(speed, pitch)
 
 - 위치: `context.cacheDir/audio/`
 - 파일명: `sha256(text + voiceName + pitch + engineVersion).wav`
-- 총량 상한 **500MB**, 넘으면 접근 시각 오래된 것부터 삭제
+- 같은 키의 `.json` 에 **단어 타이밍 표**를 함께 둔다 (§5.2). 오디오와 타이밍은
+  같은 합성의 산물이라 수명을 함께 가야 한다 — 따로 관리하면 한쪽만 남아 어긋난다
+- 총량 상한 **500MB**, 넘으면 접근 시각 오래된 것부터 삭제 (`.wav` 와 `.json` 을 한 쌍으로)
 - `cacheDir` 이라 OS 가 공간 부족 시 지워도 되고, 지워지면 다시 합성된다
 - WAV 는 크다 (16kHz 16bit mono ≈ 32KB/s, 10분 ≈ 19MB). AAC 재인코딩은 1차 제외
 
@@ -435,8 +471,15 @@ theme/
 
 - 상단: 대본 제목, 뒤로, 설정 진입
 - 본문: 원문이 문장 단위로 흐르고 현재 문장 하이라이트 + 자동 스크롤.
-  문장을 탭하면 그 문장부터 재생. 화자 라벨은 문장 왼쪽에 칩으로.
+  화자 라벨은 문장 왼쪽에 칩으로.
   사용자가 손으로 스크롤하면 자동 스크롤을 멈추고 "현재 위치로" 버튼을 띄운다
+- **아무 단어나 탭하면 그 지점부터 이어서 재생.** `TextLayoutResult.getOffsetForPosition`
+  으로 탭 좌표를 글자 오프셋으로 바꾸고, 단어 타이밍 표(§5.2)에서 그 오프셋에 해당하는
+  시각을 찾아 `seekTo(문장 인덱스, 그 시각)` 으로 간다. 타이밍 표가 없는 엔진에서는
+  글자 비율로 추정한다.
+  탭이 재생 위치 이동이므로, **텍스트 복사는 길게 눌러** 시스템 선택으로 한다
+- 단어 타이밍이 있으면 재생 중 **현재 단어**를 문장 하이라이트 위에 얹어 표시.
+  없으면 문장 하이라이트만
 - 하단 컨트롤: 10초 뒤로 · 이전 문장 · **재생/정지(큼)** · 다음 문장 · 10초 앞으로
 - 시크바 + 경과/전체 시간
 - 속도 칩: `0.75 · 1.0 · 1.25 · 1.5 · 2.0` + 슬라이더로 미세 조절
@@ -478,6 +521,8 @@ theme/
 | `synthesizeToFile` 을 엔진이 아예 지원 안 함 | live `speak()` 폴백 모드로 전환 — 실시간 속도·시크는 불가함을 알린다 |
 | 저장 공간 부족 | LRU 로 캐시를 비우고 재시도, 그래도 안 되면 안내 |
 | 캐시 파일이 외부에서 삭제됨 | 재생 시 없으면 재합성 |
+| 엔진이 `onRangeStart` 를 안 보냄 | 탭 지점을 글자 비율로 추정, 단어 하이라이트만 끈다 |
+| 오디오는 있는데 타이밍 JSON 이 없음 | 타이밍 없는 것으로 취급 (재합성하지 않는다 — 소리는 멀쩡하다) |
 | 붙여넣은 텍스트가 비었거나 문장이 0개 | 저장하지 않고 이유를 알린다 |
 | 대본이 매우 길다 (1000문장 이상) | 저장은 하되 합성을 앞쪽부터 점진 진행. 경고 표시 |
 | TTS 엔진이 재생 중 죽음 | 세션 재초기화 후 마지막 위치에서 재개 |
