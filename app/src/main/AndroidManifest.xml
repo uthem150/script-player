@@ -5,19 +5,10 @@
       android.permission.INTERNET 을 일부러 선언하지 않는다.
       기기에 설치된 TTS 음성으로만 합성하므로 네트워크가 필요 없고,
       필요 없다는 것을 매니페스트로 못 박아 둔다.
+
+      포그라운드 서비스 권한과 TTS 엔진 조회용 queries 는 그것을 쓰는 단계에서 붙인다
+      (재생은 6단계, 합성은 5단계). 검증 때 필요했던 근거는 스펙 §5.2·§5.3 에 적어 뒀다.
     -->
-
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-    <!-- 알림이 안 보이면 잠금화면 컨트롤을 확인할 수 없다 (Android 13+ 는 런타임 요청) -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-    <!-- 설치된 TTS 엔진을 조회하려면 이 쿼리가 있어야 한다 (Android 11+ 패키지 가시성) -->
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.TTS_SERVICE" />
-        </intent>
-    </queries>
 
     <application
         android:allowBackup="true"
@@ -34,16 +25,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!-- 1단계 검증용. 실측이 끝나면 실제 PlaybackService 로 바뀐다. -->
-        <service
-            android:name=".spike.PlaybackProbeService"
-            android:exported="true"
-            android:foregroundServiceType="mediaPlayback">
-            <intent-filter>
-                <action android:name="androidx.media3.session.MediaSessionService" />
-            </intent-filter>
-        </service>
     </application>
 
 </manifest>
