@@ -6,6 +6,7 @@ import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ComponentName
+import android.content.Context
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -15,8 +16,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -52,6 +55,9 @@ import java.io.File
  *
  * adb 를 쓸 수 없는 상황을 전제로 만들었다. 그래서 결과를 로그로 뱉지 않고 화면에 띄우고,
  * 복사 버튼을 붙인다. 릴리즈로 받아 설치하고 화면 한 번 보고 복사해 보내면 그게 측정 결과다.
+ *
+ * ② 는 합성해 둔 문장들을 **실제 플레이리스트로** 재생한다. 소리 하나만 틀면 다음·이전이
+ * 갈 곳이 없어 두 번 탭이 들어왔는지 알 수 없다 — 첫 실측에서 실제로 그래서 못 봤다.
  */
 
 @Composable
@@ -101,13 +107,16 @@ fun SpikeScreen(modifier: Modifier = Modifier) {
 
     Column(
         modifier = modifier
-            .fillMaxWidth()
+            .fillMaxSize()
+            // 시스템 바 아래로 화면이 깔리지 않게 한다. targetSdk 35 부터는 앱이 화면 끝까지
+            // 그리는 것이 기본이라, 이걸 빼면 내용이 상태바·뒤로가기 영역에 가려진다.
+            .safeDrawingPadding()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("1단계 실측", style = MaterialTheme.typography.headlineSmall)
-        Text(status, style = MaterialTheme.typography.bodyMedium)
+        Text("1단계 실측", style = MaterialTheme.typography.titleLarge)
+        Text(status, style = MaterialTheme.typography.bodySmall)
 
         Button(
             onClick = {
@@ -120,23 +129,22 @@ fun SpikeScreen(modifier: Modifier = Modifier) {
             enabled = !busy,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(if (busy) "합성 중… (한동안 걸립니다)" else "① 합성 속도·단어 타이밍 재기")
+            Text(if (busy) "합성 중…" else "① 합성 속도·단어 타이밍 재기")
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        val playable = measurement?.playableFiles.orEmpty()
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             Button(
                 onClick = {
                     val active = controller ?: return@Button
-                    val tone = File(context.cacheDir, "probe-tone.wav")
-                    if (!tone.exists()) writeProbeTone(tone)
-                    active.setMediaItem(MediaItem.fromUri(Uri.fromFile(tone)))
+                    active.setMediaItems(playable.map { MediaItem.fromUri(Uri.fromFile(it)) })
                     active.prepare()
                     active.play()
                 },
-                enabled = controller != null,
+                enabled = controller != null && playable.isNotEmpty(),
                 modifier = Modifier.weight(1f),
             ) {
-                Text("② 소리 켜기")
+                Text("② 재생 (${playable.size}문장)")
             }
             OutlinedButton(
                 onClick = { controller?.pause() },
@@ -148,24 +156,42 @@ fun SpikeScreen(modifier: Modifier = Modifier) {
         }
 
         Text(
-            "소리를 켠 뒤 에어팟을 한 번·두 번 탭해 보세요. 아래 기록에 재생·정지가 찍히면 " +
-                "버튼이 앱까지 들어온 것입니다. 화면을 끄고 한참 뒤에 다시 봐도 소리가 " +
-                "계속 나는지도 확인해 주세요.",
+            if (playable.isEmpty()) {
+                "① 을 먼저 눌러 주세요. 합성된 문장이 있어야 ② 가 열립니다."
+            } else {
+                "재생 중에 에어팟을 한 번 탭하면 정지, 두 번 탭하면 다음 문장으로 가야 합니다. " +
+                    "아래 기록에 «버튼·시크로 이동» 이 찍히면 두 번 탭이 들어온 것입니다. " +
+                    "화면을 끄고 1~2분 뒤에도 소리가 나는지도 봐 주세요."
+            },
             style = MaterialTheme.typography.bodySmall,
         )
 
-        SectionCard(title = "미디어 버튼 기록") {
+        SectionCard(title = "미디어 버튼 기록 (최근 12줄)") {
             if (logLines.isEmpty()) {
                 Text("아직 없음", style = MaterialTheme.typography.bodySmall)
             } else {
-                logLines.asReversed().forEach { line ->
-                    Text(line, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                logLines.asReversed().take(12).forEach { line ->
+                    Text(
+                        line,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace,
+                    )
                 }
+            }
+            OutlinedButton(
+                onClick = { ProbeLog.clear() },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("기록 지우기 (탭 실험 전에)")
             }
         }
 
         SectionCard(title = "결과") {
-            Text(report, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+            Text(
+                report,
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+            )
         }
 
         Button(
@@ -218,21 +244,23 @@ private data class Measurement(
     val engine: String?,
     val voiceUsed: String?,
     val sentences: List<SentenceProbe>,
-)
+    val files: List<File>,
+) {
+    /** 합성이 실패했거나 빈 파일은 플레이리스트에 넣지 않는다 — 넣으면 그 자리에서 재생이 끊긴다. */
+    val playableFiles: List<File> get() = files.filter { it.exists() && it.length() > 44 }
+}
 
-private suspend fun measure(
-    context: android.content.Context,
-    probe: TtsProbe,
-): Measurement {
+private suspend fun measure(context: Context, probe: TtsProbe): Measurement {
     val raw = context.assets.open("sample-script.md").bufferedReader().use { it.readText() }
     val sentences = crudeSentences(raw)
     val voice = probe.koreanOfflineVoices().firstOrNull()
     val dir = File(context.cacheDir, "probe").apply { mkdirs() }
 
+    val files = sentences.indices.map { File(dir, "s$it.wav") }
     val results = sentences.mapIndexed { index, text ->
-        probe.synthesize(text, voice, File(dir, "s$index.wav"))
+        probe.synthesize(text, voice, files[index])
     }
-    return Measurement(probe.defaultEngineName, voice?.name, results)
+    return Measurement(probe.defaultEngineName, voice?.name, results, files)
 }
 
 /** WAV 바이트에서 실제 오디오 길이를 낸다. 헤더 44바이트를 빼고 16비트 모노로 계산한다. */
@@ -256,16 +284,13 @@ private fun buildReport(
     appendLine("상태: $status")
     appendLine()
 
-    val koreanOffline = voices.count { it.locale.startsWith("ko") && it.usableOffline }
+    val koreanOffline = voices.count { it.locale.startsWith("ko_") && it.usableOffline }
     appendLine("[음성] 전체 ${voices.size}개 · 한국어 오프라인 ${koreanOffline}개")
-    voices.filter { it.locale.startsWith("ko") }.forEach { row ->
+    voices.filter { it.locale.startsWith("ko_") }.forEach { row ->
         appendLine(
             "  ${row.locale}  ${row.name}  " +
                 "오프라인=${if (row.usableOffline) "O" else "X"}  품질=${row.quality}",
         )
-    }
-    if (voices.none { it.locale.startsWith("ko") }) {
-        appendLine("  한국어 음성이 하나도 없음")
     }
     appendLine()
 
@@ -278,14 +303,16 @@ private fun buildReport(
         val elapsed = done.sumOf { it.elapsedMs }
         val audio = done.sumOf { it.audioMs() }
         val ranges = done.sumOf { it.rangeCount }
+        val bytes = done.sumOf { it.audioBytes }
 
         appendLine("[합성]  엔진=${measurement.engine}  음성=${measurement.voiceUsed ?: "기본"}")
         appendLine("  문장 ${done.size}개 · 글자 ${chars}자 · 실패 ${failures}건")
-        appendLine("  합성 ${elapsed / 1000.0}초 · 오디오 ${audio / 1000}초")
+        appendLine("  합성 ${elapsed / 1000.0}초 · 오디오 ${audio / 1000}초 · WAV ${bytes / 1024}KB")
         if (elapsed > 0 && audio > 0) {
             val factor = audio.toDouble() / elapsed
             appendLine("  실시간 대비 ${"%.1f".format(factor)}배")
             appendLine("  → 10분 대본이면 약 ${"%.0f".format(600 / factor)}초에 준비됨")
+            appendLine("  → 10분 대본의 WAV 용량 약 ${"%.0f".format(bytes * 600.0 / audio * 1000 / 1_048_576)}MB")
         }
         appendLine("  샘플레이트=${done.firstOrNull { it.sampleRate != null }?.sampleRate ?: "알 수 없음"}")
         appendLine()
@@ -295,9 +322,7 @@ private fun buildReport(
         } else {
             appendLine("  미수신 → 글자 비율 추정으로 대체, 단어 하이라이트는 포기")
         }
-        done.filter { it.error != null }.take(5).forEach {
-            appendLine("  실패: ${it.error}")
-        }
+        done.filter { it.error != null }.take(5).forEach { appendLine("  실패: ${it.error}") }
     }
     appendLine()
 
