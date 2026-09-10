@@ -13,21 +13,53 @@ fun parseScript(raw: String): ParsedScript {
 
     val sentences = mutableListOf<Sentence>()
     var current: Speaker? = null
+    var pending: Speaker? = null
 
     lines.forEach { line ->
+        /*
+         * 빈 줄이 발언을 끝낸다.
+         *
+         * 이 규칙이 없으면 이어받기에 끝이 없다. 강의형 대본 가운데 짧은 대화 토막이
+         * 있었는데, 그 라벨이 문서 끝까지 200줄을 끌고 가 모든 문장 위에 붙었다.
+         * 머리글에서만 끊기니 머리글 없는 구간이 길면 그만큼 잘못 붙는다.
+         *
+         * 미뤄 둔 라벨([pending])은 빈 줄에 지우지 않는다 — `이름:` 다음에 빈 줄을 두고
+         * 발언을 적는 대본이 있고, 그 라벨은 아래 줄에 붙어야 한다.
+         */
+        if (line.source.text.isBlank()) {
+            current = null
+            return@forEach
+        }
+
         val speaker = byLabel[line.label]
         val from = when {
             // 머리글은 발언이 아니다. 앞 화자를 이어받으면 장 제목이 그 사람 목소리로 읽힌다
             line.isHeading -> {
                 current = null
+                pending = null
                 line.contentStart
             }
             speaker != null -> {
+                /*
+                 * 라벨만 있고 내용이 없는 줄은 그 자체로 발언이 아니다.
+                 * 라벨을 미뤄 두고 다음 줄에 붙인다 — 그래야 누가 말한 것인지 남는다.
+                 */
+                if (line.source.text.substring(line.afterLabel).isBlank()) {
+                    pending = speaker
+                    return@forEach
+                }
                 current = speaker
+                pending = null
                 line.afterLabel
             }
             // 라벨 없는 줄은 앞 화자를 이어받는다 — 한 발언이 여러 줄로 이어지는 대본이 흔하다
-            else -> line.contentStart
+            else -> {
+                pending?.let {
+                    current = it
+                    pending = null
+                }
+                line.contentStart
+            }
         }
 
         splitLine(clean(line.source, from)).forEach { piece ->
