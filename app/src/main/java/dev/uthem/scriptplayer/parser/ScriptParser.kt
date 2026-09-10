@@ -7,7 +7,7 @@ package dev.uthem.scriptplayer.parser
  * 위치가 밀려 원문으로 돌아갈 길이 사라진다. 나중에 붙일 수 있는 성질이 아니다.
  */
 fun parseScript(raw: String): ParsedScript {
-    val sentences = sourceLines(raw)
+    val sentences = keptLines(raw)
         .flatMap { line -> splitLine(clean(line)) }
         .mapIndexed { index, piece ->
             Sentence(
@@ -50,6 +50,50 @@ private fun sourceLines(raw: String): List<SourceLine> {
         start = newline + 1
     }
     return lines
+}
+
+// ── 읽지 않을 덩이 버리기 ────────────────────────────────────────────────────
+
+/**
+ * 코드 블록과 표를 통째로 버린 줄 목록.
+ *
+ * 코드를 읽히면 "콘솔 점 로그 열린괄호 따옴표" 가 나오고, 표는 셀을 이어 읽어도 뜻이
+ * 통하지 않는다. 화면에는 보여줄 수 있어도 소리로는 버리는 것이 맞다.
+ */
+private fun keptLines(raw: String): List<SourceLine> {
+    val kept = mutableListOf<SourceLine>()
+    var openFence: String? = null
+
+    sourceLines(raw).forEach { line ->
+        val trimmed = line.text.trim()
+        val fence = openFence
+        if (fence != null) {
+            /*
+             * 펜스가 열려 있으면 닫힐 때까지 버린다.
+             *
+             * 닫히지 않고 원문이 끝나면 뒤가 전부 버려진다. 대본이 잘려 오는 일이 있고,
+             * 그때 코드를 읽어 버리는 것보다 조금 덜 읽는 쪽이 낫다.
+             */
+            if (trimmed.startsWith(fence)) openFence = null
+            return@forEach
+        }
+
+        val opener = fenceMarker(trimmed)
+        // 줄이 파이프로 시작할 때만 표로 본다 — 문장 안에서도 파이프를 쓴다
+        when {
+            opener != null -> openFence = opener
+            trimmed.startsWith("|") -> Unit
+            else -> kept += line
+        }
+    }
+    return kept
+}
+
+/** 물결 펜스는 세 개부터다 — 두 개는 취소선(`~~지운 말~~`)이다. */
+private fun fenceMarker(trimmed: String): String? = when {
+    trimmed.startsWith("```") -> "```"
+    trimmed.startsWith("~~~") -> "~~~"
+    else -> null
 }
 
 // ── 마크다운 벗기기 ──────────────────────────────────────────────────────────
