@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      아이콘 바탕. 디자인 시스템의 Toss Blue(primary) 를 그대로 쓴다 —
+      앱을 열었을 때 보이는 색과 런처에서 보이는 색이 같아야 같은 앱으로 읽힌다.
+    -->
+    <color name="ic_launcher_background">#3182F6</color>
+</resources>

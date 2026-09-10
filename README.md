@@ -9,6 +9,13 @@
 > 만드는 사람 기준: **화면을 끄고 에어팟으로** 들을 수 있어야 하고,
 > 인터넷이 없어도 돌아야 합니다. 둘 중 하나라도 못 지키면 쓸 이유가 없습니다.
 
+<img src="app/screenshots/app-icon.png" width="420" alt="앱 아이콘 — 런처 모양과 크기별">
+
+아이콘은 벡터 하나(`ic_launcher_foreground.xml`)로 끝냅니다 — minSdk 26 이라
+해상도별 PNG 가 필요 없고, Android 13+ 의 테마 아이콘도 같은 그림을 씁니다.
+[IconScreenshotTest](app/src/test/java/dev/uthem/scriptplayer/ui/IconScreenshotTest.kt) 가
+런처가 씌우는 모양과 실제로 쓰이는 크기를 위 한 장으로 찍어, 작을 때 뭉개지는지 눈으로 보게 합니다.
+
 ---
 
 ## 1. 무엇을 하나
