@@ -25,6 +25,17 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!--
+              다른 앱에서 텍스트를 공유하면 여기로 들어온다.
+              데스크톱에서 만든 대본을 메신저로 자신에게 보내고, 폰에서 길게 눌러
+              "공유 → 대본 플레이어" 로 던져 넣는 흐름이 이 앱의 주된 유입 경로다.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
     </application>
 

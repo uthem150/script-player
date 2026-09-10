@@ -55,6 +55,7 @@
 | **보관함 · 빈 상태** | <img src="app/screenshots/library-empty-light.png" width="240" alt="보관함 · 빈 상태 밝게"> | <img src="app/screenshots/library-empty-dark.png" width="240" alt="보관함 · 빈 상태 어둡게"> |
 | **새 대본** | <img src="app/screenshots/add-script-light.png" width="240" alt="새 대본 밝게"> | <img src="app/screenshots/add-script-dark.png" width="240" alt="새 대본 어둡게"> |
 | **새 대본 · 읽을 문장 없음** | <img src="app/screenshots/add-error-light.png" width="240" alt="새 대본 · 읽을 문장 없음 밝게"> | <img src="app/screenshots/add-error-dark.png" width="240" alt="새 대본 · 읽을 문장 없음 어둡게"> |
+| **공유 받기** | <img src="app/screenshots/share-light.png" width="240" alt="공유 받기 밝게"> | <img src="app/screenshots/share-dark.png" width="240" alt="공유 받기 어둡게"> |
 | **컴포넌트** | <img src="app/screenshots/component-light.png" width="240" alt="컴포넌트 밝게"> | <img src="app/screenshots/component-dark.png" width="240" alt="컴포넌트 어둡게"> |
 | **색 토큰** | <img src="app/screenshots/color-light.png" width="240" alt="색 토큰 밝게"> | <img src="app/screenshots/color-dark.png" width="240" alt="색 토큰 어둡게"> |
 | **글자 눈금** | <img src="app/screenshots/type-light.png" width="240" alt="글자 눈금 밝게"> | <img src="app/screenshots/type-dark.png" width="240" alt="글자 눈금 어둡게"> |
@@ -101,6 +102,9 @@ Play Store 를 거치지 않고 APK 를 직접 설치합니다.
 
 스크린샷은 Robolectric 이 **JVM 에서** 렌더하므로 기기도 에뮬레이터도 필요 없습니다.
 찍기 전에 내용이 실제로 그려졌는지 단언하기 때문에, 깨진 화면이 기준 이미지로 남을 수 없습니다.
+
+`updateReadme` 와 `check` 는 **따로 돌려야 합니다.** 한 번에 부르면 유닛 테스트가 한 번만
+도는데 그때 검증 모드로 돌아, 방금 다시 찍을 화면을 옛 기준과 견주다 실패합니다.
 
 ### 걸려 넘어질 자리
 

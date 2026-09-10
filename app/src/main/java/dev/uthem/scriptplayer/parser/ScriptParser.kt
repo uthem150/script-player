@@ -40,10 +40,15 @@ fun parseScript(raw: String): ParsedScript {
         }
     }
 
+    val heading = lines.firstOrNull { it.isHeading }
+        ?.let { clean(it.source, it.contentStart).text.trim() }
+        ?.takeIf { it.isNotEmpty() }
+
     return ParsedScript(
-        title = titleOf(lines, sentences),
+        title = heading?.ellipsize(60) ?: sentences.firstOrNull()?.text?.ellipsize(40) ?: "",
         speakers = speakers,
         sentences = sentences,
+        titleFromHeading = heading != null,
     )
 }
 
@@ -502,21 +507,6 @@ private fun toPiece(line: Cleaned, span: Span): Piece? {
     val content = line.text.substring(trimmed.from, trimmed.to)
     if (content.none { it.isLetterOrDigit() }) return null
     return Piece(content, line.origin[trimmed.from]..line.origin[trimmed.to - 1])
-}
-
-/**
- * 제목.
- *
- * 첫 머리글을 쓴다. 없으면 첫 문장 앞부분으로 둔다 — 목록에서 무엇인지 알아볼 수만 있으면
- * 되고, 사용자가 고칠 수 있다.
- */
-private fun titleOf(lines: List<LineInfo>, sentences: List<Sentence>): String {
-    val heading = lines.firstOrNull { it.isHeading }
-    if (heading != null) {
-        val text = clean(heading.source, heading.contentStart).text.trim()
-        if (text.isNotEmpty()) return text.ellipsize(60)
-    }
-    return sentences.firstOrNull()?.text?.ellipsize(40) ?: ""
 }
 
 private fun String.ellipsize(limit: Int) =

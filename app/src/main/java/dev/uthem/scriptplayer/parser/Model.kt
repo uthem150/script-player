@@ -10,6 +10,14 @@ data class ParsedScript(
     val title: String,
     val speakers: List<Speaker>,
     val sentences: List<Sentence>,
+    /**
+     * 제목이 머리글에서 왔는지.
+     *
+     * 머리글에서 왔으면 첫 문장과 제목이 같은 글자다 — 머리글도 읽히는 문장이기 때문이다.
+     * 머리글이 없을 때는 첫 문장 앞부분을 제목으로 삼으므로, 같아 보여도 첫 문장을
+     * 제목의 중복으로 취급하면 실제 내용을 잃는다. 그 둘을 구분하려면 이 값이 필요하다.
+     */
+    val titleFromHeading: Boolean,
 )
 
 /**
