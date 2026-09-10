@@ -56,6 +56,7 @@
 | **새 대본** | <img src="app/screenshots/add-script-light.png" width="240" alt="새 대본 밝게"> | <img src="app/screenshots/add-script-dark.png" width="240" alt="새 대본 어둡게"> |
 | **새 대본 · 읽을 문장 없음** | <img src="app/screenshots/add-error-light.png" width="240" alt="새 대본 · 읽을 문장 없음 밝게"> | <img src="app/screenshots/add-error-dark.png" width="240" alt="새 대본 · 읽을 문장 없음 어둡게"> |
 | **공유 받기** | <img src="app/screenshots/share-light.png" width="240" alt="공유 받기 밝게"> | <img src="app/screenshots/share-dark.png" width="240" alt="공유 받기 어둡게"> |
+| **목소리 없음** | <img src="app/screenshots/no-voice-light.png" width="240" alt="목소리 없음 밝게"> | <img src="app/screenshots/no-voice-dark.png" width="240" alt="목소리 없음 어둡게"> |
 | **컴포넌트** | <img src="app/screenshots/component-light.png" width="240" alt="컴포넌트 밝게"> | <img src="app/screenshots/component-dark.png" width="240" alt="컴포넌트 어둡게"> |
 | **색 토큰** | <img src="app/screenshots/color-light.png" width="240" alt="색 토큰 밝게"> | <img src="app/screenshots/color-dark.png" width="240" alt="색 토큰 어둡게"> |
 | **글자 눈금** | <img src="app/screenshots/type-light.png" width="240" alt="글자 눈금 밝게"> | <img src="app/screenshots/type-dark.png" width="240" alt="글자 눈금 어둡게"> |

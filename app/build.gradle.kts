@@ -85,6 +85,7 @@ private val readmeScreens = listOf(
     Triple("새 대본", "add-script-light.png", "add-script-dark.png"),
     Triple("새 대본 · 읽을 문장 없음", "add-error-light.png", "add-error-dark.png"),
     Triple("공유 받기", "share-light.png", "share-dark.png"),
+    Triple("목소리 없음", "no-voice-light.png", "no-voice-dark.png"),
     Triple("컴포넌트", "component-light.png", "component-dark.png"),
     Triple("색 토큰", "color-light.png", "color-dark.png"),
     Triple("글자 눈금", "type-light.png", "type-dark.png"),
