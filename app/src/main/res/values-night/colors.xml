@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 어두운 테마의 background = Ink900 -->
+    <color name="window_background">#131417</color>
+</resources>
