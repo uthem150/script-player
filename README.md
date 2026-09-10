@@ -120,7 +120,7 @@ Play Store 를 거치지 않고 APK 를 직접 설치합니다.
 
 ## 6. 스택
 
-Kotlin · Jetpack Compose · Media3 · Room · Roborazzi
+Kotlin · Jetpack Compose · Media3 · Room · Roborazzi · [Pretendard](licenses/)
 
 안드로이드 전용입니다. 화면을 끈 백그라운드 재생과 에어팟 버튼, 그리고 음성을 파일로
 합성하는 것(`TextToSpeech.synthesizeToFile`) 이 전부 플랫폼 API 라, 웹이나 크로스플랫폼
