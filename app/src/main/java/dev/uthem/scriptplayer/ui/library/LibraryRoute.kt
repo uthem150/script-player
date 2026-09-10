@@ -34,6 +34,7 @@ import dev.uthem.scriptplayer.ui.theme.AppTheme
 @Composable
 fun LibraryRoute(
     onOpenAdd: () -> Unit,
+    onOpenScript: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val container = LocalContext.current.appContainer
@@ -50,6 +51,7 @@ fun LibraryRoute(
     LibraryScreen(
         state = state,
         onAdd = onOpenAdd,
+        onOpen = { onOpenScript(it.id) },
         onRename = { renaming = it },
         onDelete = { deleting = it },
         modifier = modifier,

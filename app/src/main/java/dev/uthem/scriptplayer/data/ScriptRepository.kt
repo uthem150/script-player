@@ -58,6 +58,12 @@ class ScriptRepository(
 
     suspend fun load(id: String): ParsedScript? = dao.find(id)?.let { parseScript(it.raw) }
 
+    /** 어디까지 들었는지. 없는 대본이면 처음. */
+    suspend fun progressOf(id: String): Progress =
+        dao.find(id)?.let { Progress(it.lastSentenceIndex, it.lastPositionMs) } ?: Progress(0, 0)
+
+    data class Progress(val sentenceIndex: Int, val positionMs: Long)
+
     suspend fun rename(id: String, title: String) {
         val trimmed = title.trim()
         if (trimmed.isEmpty()) return

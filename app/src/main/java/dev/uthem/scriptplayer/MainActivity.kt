@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.uthem.scriptplayer.ui.library.AddScriptRoute
 import dev.uthem.scriptplayer.ui.library.LibraryRoute
+import dev.uthem.scriptplayer.ui.player.PlayerRoute
 import dev.uthem.scriptplayer.ui.share.ShareConfirmRoute
 import dev.uthem.scriptplayer.ui.theme.AppTheme
 
@@ -72,8 +73,11 @@ private fun Intent.plainTextToRead(): String? {
 /**
  * 화면 사이 이동.
  *
- * 화면이 적어 참·거짓 하나로 둔다. Navigation 을 얹으면 지금은 설정이 코드보다 많아진다.
- * 재생기와 설정이 들어오는 7·8단계에 제대로 바꾼다.
+ * Navigation 을 얹지 않고 "지금 어느 화면인가" 를 값 하나로 둔다. 화면이 넷이고 흐름이
+ * 한 줄기(보관함 → 재생기 / 보관함 → 새 대본)라, 경로 표를 만들면 코드보다 설정이 많아진다.
+ * 설정 화면이 붙고 흐름이 갈라지면 그때 바꾼다.
+ *
+ * 재생 중인 대본 id 를 [rememberSaveable] 로 들고 있어, 화면을 돌려도 재생기가 닫히지 않는다.
  */
 @Composable
 private fun AppRoot(
@@ -81,18 +85,30 @@ private fun AppRoot(
     onSharedHandled: () -> Unit,
 ) {
     var addingScript by rememberSaveable { mutableStateOf(false) }
+    var playingScriptId by rememberSaveable { mutableStateOf<String?>(null) }
 
+    val openScript = playingScriptId
     when {
         // 공유가 가장 앞선다. 공유로 앱이 열린 것이라 다른 화면을 먼저 보여줄 이유가 없다
         sharedText != null -> {
             BackHandler(onBack = onSharedHandled)
             ShareConfirmRoute(raw = sharedText, onDone = onSharedHandled)
         }
+
+        openScript != null -> {
+            BackHandler { playingScriptId = null }
+            PlayerRoute(scriptId = openScript, onBack = { playingScriptId = null })
+        }
+
         addingScript -> {
             // 뒤로 가기로 붙여넣기 화면을 닫는다. 없으면 앱이 통째로 닫힌다
             BackHandler { addingScript = false }
             AddScriptRoute(onDone = { addingScript = false })
         }
-        else -> LibraryRoute(onOpenAdd = { addingScript = true })
+
+        else -> LibraryRoute(
+            onOpenAdd = { addingScript = true },
+            onOpenScript = { playingScriptId = it },
+        )
     }
 }

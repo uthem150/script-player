@@ -35,6 +35,7 @@ class LibraryScreenshotTest {
         LibraryScreen(
             state = LibraryUiState(scripts = previewScripts(), loading = false),
             onAdd = {},
+            onOpen = {},
             onRename = {},
             onDelete = {},
         )
@@ -45,6 +46,7 @@ class LibraryScreenshotTest {
         LibraryScreen(
             state = LibraryUiState(scripts = previewScripts(), loading = false),
             onAdd = {},
+            onOpen = {},
             onRename = {},
             onDelete = {},
         )
@@ -56,6 +58,7 @@ class LibraryScreenshotTest {
             LibraryScreen(
                 state = LibraryUiState(loading = false),
                 onAdd = {},
+                onOpen = {},
                 onRename = {},
                 onDelete = {},
             )
@@ -67,6 +70,7 @@ class LibraryScreenshotTest {
             LibraryScreen(
                 state = LibraryUiState(loading = false),
                 onAdd = {},
+                onOpen = {},
                 onRename = {},
                 onDelete = {},
             )

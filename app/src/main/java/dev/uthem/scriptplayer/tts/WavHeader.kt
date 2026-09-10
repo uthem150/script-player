@@ -48,5 +48,22 @@ private fun RandomAccessFile.readLe32(): Int {
         ((bytes[3].toInt() and 0xff) shl 24)
 }
 
+/**
+ * WAV 의 재생 길이.
+ *
+ * 파일 크기와 샘플레이트로 낸다. ExoPlayer 가 항목을 준비한 뒤에 알려주는 값을 기다리면
+ * 진도 막대가 한동안 어림값으로 남는데, 파일은 이미 손에 있으므로 바로 잴 수 있다.
+ *
+ * 16비트 모노를 전제한다 — `synthesizeToFile` 이 그 형식으로 낸다(실측 확인).
+ */
+fun wavDurationMs(file: File): Long? {
+    val sampleRate = readWavSampleRate(file) ?: return null
+    val dataBytes = file.length() - HEADER_BYTES
+    if (dataBytes <= 0) return null
+    return dataBytes * 1000L / (sampleRate.toLong() * BYTES_PER_SAMPLE)
+}
+
 private const val MIN_HEADER_BYTES = 12L
 private const val CHUNK_HEADER_BYTES = 8L
+private const val HEADER_BYTES = 44L
+private const val BYTES_PER_SAMPLE = 2L

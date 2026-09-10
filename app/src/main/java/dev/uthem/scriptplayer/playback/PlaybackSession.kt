@@ -31,20 +31,30 @@ class PlaybackSession(
     private val waiting = mutableMapOf<Int, java.io.File>()
     private var nextToAppend = 0
 
+    /** 이어듣기로 옮겨야 할 자리. 그 문장이 붙을 때까지 기다린다. */
+    private var pendingSeek: Pair<Int, Long>? = null
+
     private val _state = MutableStateFlow(PlaybackUiState())
     val state: StateFlow<PlaybackUiState> = _state.asStateFlow()
 
-    /** 새 대본을 걸고 처음부터 준비한다. */
-    fun load(script: ParsedScript, startAt: Int = 0) {
+    /**
+     * 새 대본을 걸고 준비한다.
+     *
+     * 이어듣기 지점은 바로 적용할 수 없다 — 아직 붙은 문장이 없어 그 자리로 갈 수 없다.
+     * 기억해 두고 그 문장이 붙는 순간 옮긴다([pendingSeek]).
+     */
+    fun load(script: ParsedScript, startAt: Int = 0, startWithinMs: Long = 0) {
         player.clear()
         player.setScriptTitle(script.title)
         waiting.clear()
         nextToAppend = 0
         sentenceTexts = script.sentences.map { it.text }
         timeline = SentenceTimeline(script.sentences.map { it.text.length })
+        val target = startAt.coerceIn(0, maxOf(0, script.sentences.size - 1))
+        pendingSeek = if (target > 0 || startWithinMs > 0) target to startWithinMs else null
         _state.value = PlaybackUiState(
             sentenceCount = script.sentences.size,
-            currentIndex = startAt.coerceIn(0, maxOf(0, script.sentences.size - 1)),
+            currentIndex = target,
             totalMs = timeline.totalMs,
         )
     }
@@ -61,7 +71,13 @@ class PlaybackSession(
                 is SynthesisProgress.Done -> {
                     waiting[event.index] = event.sentence.audio
                     drainInOrder()
-                    if (autoPlay && player.itemCount == 1 && !player.isPlaying) {
+                    /*
+                     * 이어듣기 자리가 남아 있으면 아직 재생하지 않는다.
+                     *
+                     * 20번 문장부터 들어야 하는데 0번이 붙는 순간 재생하면, 이어듣기를
+                     * 저장해 둔 의미가 없다 — 처음부터 다시 듣게 된다.
+                     */
+                    if (autoPlay && pendingSeek == null && player.itemCount >= 1 && !player.isPlaying) {
                         player.play()
                         _state.value = _state.value.copy(playing = true)
                     }
@@ -98,7 +114,17 @@ class PlaybackSession(
             )
             nextToAppend++
             _state.value = _state.value.copy(readySentences = nextToAppend)
+            applyPendingSeekIfReady()
         }
+    }
+
+    /** 이어듣기 자리의 문장이 붙었으면 그리로 옮긴다. */
+    private fun applyPendingSeekIfReady() {
+        val (index, withinMs) = pendingSeek ?: return
+        if (nextToAppend <= index) return
+        pendingSeek = null
+        player.seekTo(index, withinMs)
+        _state.value = _state.value.copy(currentIndex = index)
     }
 
     fun measured(index: Int, durationMs: Long) {

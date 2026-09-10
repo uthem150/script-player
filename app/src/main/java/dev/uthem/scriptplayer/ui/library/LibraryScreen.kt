@@ -49,6 +49,7 @@ import dev.uthem.scriptplayer.ui.theme.Space
 fun LibraryScreen(
     state: LibraryUiState,
     onAdd: () -> Unit,
+    onOpen: (ScriptSummary) -> Unit,
     onRename: (ScriptSummary) -> Unit,
     onDelete: (ScriptSummary) -> Unit,
     modifier: Modifier = Modifier,
@@ -91,6 +92,7 @@ fun LibraryScreen(
                 items(state.scripts, key = { it.id }) { script ->
                     ScriptRow(
                         script = script,
+                        onOpen = { onOpen(script) },
                         onRename = { onRename(script) },
                         onDelete = { onDelete(script) },
                     )
@@ -127,10 +129,12 @@ private fun EmptyLibrary(modifier: Modifier = Modifier) {
 @Composable
 private fun ScriptRow(
     script: ScriptSummary,
+    onOpen: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    AppCard(modifier = Modifier.fillMaxWidth()) {
+    // 카드를 누르면 재생기로 간다. 이 앱에서 가장 자주 하는 동작이라 카드 전체가 과녁이다
+    AppCard(modifier = Modifier.fillMaxWidth(), onClick = onOpen) {
         /*
          * 뭇단추를 카드 안에 늘어놓지 않는다.
          *
@@ -244,6 +248,7 @@ private fun LibraryPreview() {
         LibraryScreen(
             state = LibraryUiState(scripts = previewScripts(), loading = false),
             onAdd = {},
+            onOpen = {},
             onRename = {},
             onDelete = {},
         )
@@ -257,6 +262,7 @@ private fun EmptyPreview() {
         LibraryScreen(
             state = LibraryUiState(loading = false),
             onAdd = {},
+            onOpen = {},
             onRename = {},
             onDelete = {},
         )

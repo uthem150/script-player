@@ -285,4 +285,50 @@ class PlaybackSessionTest {
         assertEquals("이벤트 루프", player.capturedTitle)
         assertEquals(listOf("이벤트 루프", "하나."), player.appendedTexts.take(2))
     }
+
+    /**
+     * 이어듣기의 요점.
+     *
+     * 20번 문장부터 들어야 하는데 0번이 붙는 순간 재생하면 이어듣기를 저장해 둔 의미가
+     * 없다 — 처음부터 다시 듣게 된다. 그 문장이 붙을 때까지 기다려야 한다.
+     */
+    @Test
+    fun `이어듣기 자리가 남아 있으면 그때까지 재생하지 않는다`() = runTest {
+        val player = FakePlayer()
+        val session = PlaybackSession(player)
+        session.load(script, startAt = 2, startWithinMs = 700)
+
+        session.consume(flowOf(done(0)))
+        assertFalse("아직 그 문장이 안 붙었는데 재생했다", player.isPlaying)
+
+        session.consume(flowOf(done(1), done(2)))
+        assertTrue("그 문장이 붙었으니 재생해야 한다", player.isPlaying)
+        assertEquals(2 to 700L, player.seeks.last())
+    }
+
+    @Test
+    fun `이어듣기 자리가 없으면 첫 문장에서 바로 재생한다`() = runTest {
+        val player = FakePlayer()
+        val session = PlaybackSession(player)
+        session.load(script, startAt = 0, startWithinMs = 0)
+
+        session.consume(flowOf(done(0)))
+
+        assertTrue(player.isPlaying)
+        assertTrue("옮길 자리가 없으니 시크도 없다", player.seeks.isEmpty())
+    }
+
+    @Test
+    fun `이어듣기 자리가 실패한 문장이면 뒤 문장에서 재생을 시작한다`() = runTest {
+        val player = FakePlayer()
+        val session = PlaybackSession(player)
+        session.load(script, startAt = 1, startWithinMs = 500)
+
+        session.consume(
+            flowOf(done(0), SynthesisProgress.Failed(1, "실패"), done(2)),
+        )
+
+        // 1번이 없으니 그 자리로 갈 수 없다 — 그래도 재생은 시작돼야 한다
+        assertTrue("실패한 자리에서 멈춰 버렸다", player.isPlaying)
+    }
 }

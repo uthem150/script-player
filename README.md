@@ -44,13 +44,14 @@
 
 ## 3. 화면
 
-보관함까지 만들어졌습니다. 재생기와 설정 화면이 만들어지는 대로
-이 표에 붙습니다.
+보관함과 재생기까지 만들어졌습니다. 설정 화면이 만들어지는 대로 이 표에 붙습니다.
 
 <!-- SCREENS:BEGIN -->
 
 | | 밝게 | 어둡게 |
 | --- | --- | --- |
+| **재생기** | <img src="app/screenshots/player-light.png" width="240" alt="재생기 밝게"> | <img src="app/screenshots/player-dark.png" width="240" alt="재생기 어둡게"> |
+| **재생기 · 정지와 합성 중** | <img src="app/screenshots/player-paused-light.png" width="240" alt="재생기 · 정지와 합성 중 밝게"> | <img src="app/screenshots/player-synthesizing-dark.png" width="240" alt="재생기 · 정지와 합성 중 어둡게"> |
 | **보관함** | <img src="app/screenshots/library-light.png" width="240" alt="보관함 밝게"> | <img src="app/screenshots/library-dark.png" width="240" alt="보관함 어둡게"> |
 | **보관함 · 빈 상태** | <img src="app/screenshots/library-empty-light.png" width="240" alt="보관함 · 빈 상태 밝게"> | <img src="app/screenshots/library-empty-dark.png" width="240" alt="보관함 · 빈 상태 어둡게"> |
 | **새 대본** | <img src="app/screenshots/add-script-light.png" width="240" alt="새 대본 밝게"> | <img src="app/screenshots/add-script-dark.png" width="240" alt="새 대본 어둡게"> |

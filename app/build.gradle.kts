@@ -80,6 +80,8 @@ tasks.named("check") {
  * 마커 밖의 글은 사람이 쓴다 — 생성기가 설명을 덮지 않게 하는 경계다.
  */
 private val readmeScreens = listOf(
+    Triple("재생기", "player-light.png", "player-dark.png"),
+    Triple("재생기 · 정지와 합성 중", "player-paused-light.png", "player-synthesizing-dark.png"),
     Triple("보관함", "library-light.png", "library-dark.png"),
     Triple("보관함 · 빈 상태", "library-empty-light.png", "library-empty-dark.png"),
     Triple("새 대본", "add-script-light.png", "add-script-dark.png"),
