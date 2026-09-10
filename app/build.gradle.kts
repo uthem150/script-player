@@ -3,6 +3,7 @@ plugins {
     // 적용하면 빌드가 거부된다. https://kotl.in/gradle/agp-built-in-kotlin
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.roborazzi)
 }
 
 android {
@@ -38,6 +39,28 @@ android {
     buildFeatures {
         compose = true
     }
+
+    testOptions {
+        unitTests {
+            // Robolectric 이 리소스와 테마를 읽어야 화면을 렌더할 수 있다.
+            isIncludeAndroidResources = true
+        }
+    }
+}
+
+roborazzi {
+    // 기준 이미지는 저장소에 있어야 한다 — build/ 아래에 두면 회귀 검증이 성립하지 않는다.
+    outputDir.set(file("screenshots"))
+}
+
+/*
+ * `./gradlew check` 한 줄로 스크린샷 회귀까지 잡히게 한다.
+ *
+ * 검증을 따로 기억해서 돌려야 하면 언젠가 안 돌린다. verifyRoborazziDebug 가 태스크 그래프에
+ * 있으면 Roborazzi 가 유닛 테스트를 검증 모드로 돌리므로 테스트가 두 번 돌지는 않는다.
+ */
+tasks.named("check") {
+    dependsOn("verifyRoborazziDebug")
 }
 
 dependencies {
@@ -53,9 +76,17 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.ext.junit)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.junit.rule)
 }
