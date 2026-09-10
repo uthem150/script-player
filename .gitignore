@@ -1,0 +1,30 @@
+# Gradle
+.gradle/
+build/
+local.properties
+
+# Android 빌드 산출물
+*.apk
+*.aab
+*.ap_
+*.dex
+captures/
+.cxx/
+release/
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Kotlin
+.kotlin/
+
+# Roborazzi — 기준 이미지(screenshots/)와 README 이미지(docs/screens/)는 추적하고,
+# 비교 결과와 diff 만 무시한다. 기준이 저장소에 없으면 회귀 검증이 성립하지 않는다.
+**/build/outputs/roborazzi/
+
+# macOS
+.DS_Store
