@@ -44,13 +44,17 @@
 
 ## 3. 화면
 
-아직 디자인 시스템뿐입니다 — 컴포넌트와 토큰. 보관함·재생기·설정 화면이 만들어지는 대로
+보관함까지 만들어졌습니다. 재생기와 설정 화면이 만들어지는 대로
 이 표에 붙습니다.
 
 <!-- SCREENS:BEGIN -->
 
 | | 밝게 | 어둡게 |
 | --- | --- | --- |
+| **보관함** | <img src="app/screenshots/library-light.png" width="240" alt="보관함 밝게"> | <img src="app/screenshots/library-dark.png" width="240" alt="보관함 어둡게"> |
+| **보관함 · 빈 상태** | <img src="app/screenshots/library-empty-light.png" width="240" alt="보관함 · 빈 상태 밝게"> | <img src="app/screenshots/library-empty-dark.png" width="240" alt="보관함 · 빈 상태 어둡게"> |
+| **새 대본** | <img src="app/screenshots/add-script-light.png" width="240" alt="새 대본 밝게"> | <img src="app/screenshots/add-script-dark.png" width="240" alt="새 대본 어둡게"> |
+| **새 대본 · 읽을 문장 없음** | <img src="app/screenshots/add-error-light.png" width="240" alt="새 대본 · 읽을 문장 없음 밝게"> | <img src="app/screenshots/add-error-dark.png" width="240" alt="새 대본 · 읽을 문장 없음 어둡게"> |
 | **컴포넌트** | <img src="app/screenshots/component-light.png" width="240" alt="컴포넌트 밝게"> | <img src="app/screenshots/component-dark.png" width="240" alt="컴포넌트 어둡게"> |
 | **색 토큰** | <img src="app/screenshots/color-light.png" width="240" alt="색 토큰 밝게"> | <img src="app/screenshots/color-dark.png" width="240" alt="색 토큰 어둡게"> |
 | **글자 눈금** | <img src="app/screenshots/type-light.png" width="240" alt="글자 눈금 밝게"> | <img src="app/screenshots/type-dark.png" width="240" alt="글자 눈금 어둡게"> |
