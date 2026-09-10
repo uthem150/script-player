@@ -44,12 +44,14 @@
 
 ## 3. 화면
 
-아직 디자인 시스템 토큰뿐입니다. 보관함·재생기·설정 화면이 만들어지는 대로 이 표에 붙습니다.
+아직 디자인 시스템뿐입니다 — 컴포넌트와 토큰. 보관함·재생기·설정 화면이 만들어지는 대로
+이 표에 붙습니다.
 
 <!-- SCREENS:BEGIN -->
 
 | | 밝게 | 어둡게 |
 | --- | --- | --- |
+| **컴포넌트** | <img src="app/screenshots/component-light.png" width="240" alt="컴포넌트 밝게"> | <img src="app/screenshots/component-dark.png" width="240" alt="컴포넌트 어둡게"> |
 | **색 토큰** | <img src="app/screenshots/color-light.png" width="240" alt="색 토큰 밝게"> | <img src="app/screenshots/color-dark.png" width="240" alt="색 토큰 어둡게"> |
 | **글자 눈금** | <img src="app/screenshots/type-light.png" width="240" alt="글자 눈금 밝게"> | <img src="app/screenshots/type-dark.png" width="240" alt="글자 눈금 어둡게"> |
 
