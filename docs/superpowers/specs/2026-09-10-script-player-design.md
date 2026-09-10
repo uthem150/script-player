@@ -3,7 +3,7 @@
 - 작성일: 2026-09-10
 - 저장소: `RnD/script-player` (github.com/uthem150/script-player)
 - 패키지: `dev.uthem.scriptplayer`
-- 대상: 안드로이드 (minSdk 26, compileSdk·targetSdk 36)
+- 대상: 안드로이드 (minSdk 26, compileSdk 37.2, targetSdk 36)
 - 스택: Kotlin 2.4.20, AGP 9.4.0, Compose BOM 2026.09.00, Media3 1.11.0,
   Room 2.8.5, Roborazzi 1.74.0, Robolectric 4.16.1
 
@@ -653,16 +653,18 @@ Compass 처럼 실제 화면을 담은 README 를 만들되, 스크린샷을 손
 
 ## 10. 환경 준비
 
-이 맥의 현재 상태: JDK 25 (Temurin) 있음. **Android SDK·adb·Android Studio 없음.**
-Homebrew 있음.
+설치 절차는 [README](../../../README.md#4-만들고-돌리기) 에 있다. 설치하면서 걸린 것을
+남긴다 — 다시 겪지 않도록.
 
-```bash
-brew install --cask temurin@21              # AGP 호환 JDK
-brew install --cask android-commandlinetools
-sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-```
+| 걸린 것 | 사실 |
+| --- | --- |
+| JDK | JDK 25 는 AGP 가 아직 안 받는다. **21** 을 쓴다. cask `temurin@21` 은 `.pkg` 라 sudo 를 물어 멈추므로 formula `openjdk@21` 로 받는다 |
+| Kotlin 플러그인 | **AGP 9 부터 Kotlin 지원이 내장.** `kotlin-android` 를 적용하면 빌드가 거부된다 |
+| 플랫폼 이름 | 마이너 버전까지 쓴다. `platforms;android-37` 은 **없고** `android-37.2` 가 있다 |
+| compileSdk 표기 | `compileSdk = 37` + `compileSdkMinor = 2` 로 나눠 적는다 |
+| compileSdk 하한 | 지금 androidx 스택이 **37 이상**을 요구한다. 36 으로는 의존성 15개가 거부한다 |
+| Gradle | 래퍼로 받는다. AGP 9.4.0 은 Gradle **9.7.1** 로 확인했다 |
 
-Gradle 은 wrapper 로 받으므로 따로 설치하지 않는다.
 배포는 Play Store 없이 `./gradlew assembleDebug` → APK 직접 설치.
 
 ---

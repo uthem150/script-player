@@ -57,23 +57,39 @@ _아직 없습니다. 2단계에서 스크린샷 파이프라인을 세우면 �
 
 ## 4. 만들고 돌리기
 
+### 처음 한 번
+
 ```bash
-# 처음 한 번
-brew install --cask temurin@21 android-commandlinetools
-sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+brew install openjdk@21                      # cask 가 아니라 formula — sudo 를 묻지 않는다
+brew install --cask android-commandlinetools
 
-# 검사 (유닛 테스트 + 스크린샷 회귀 + 린트)
-./gradlew check
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21
+export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
+yes | sdkmanager --licenses
+sdkmanager "platform-tools" "platforms;android-37.2" "build-tools;37.0.0"
+```
 
-# 스크린샷 다시 기록
-./gradlew recordRoborazziDebug
+`JAVA_HOME` 은 셸 프로필에 넣어 두는 편이 낫습니다. Gradle 은 래퍼로 받으므로 따로 깔지 않습니다.
 
-# APK 만들어 폰에 설치
+### 만들고 설치
+
+```bash
 ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 Play Store 를 거치지 않고 APK 를 직접 설치합니다.
+
+`./gradlew check` (유닛 테스트 + 스크린샷 회귀 + 린트) 와 `./gradlew recordRoborazziDebug`
+는 2단계에서 들어옵니다.
+
+### 걸려 넘어질 자리
+
+- **JDK 25 로는 안 됩니다.** AGP 가 아직 받지 않아 JDK 21 을 씁니다
+- **AGP 9 부터 Kotlin 지원이 내장**이라 `kotlin-android` 플러그인을 적용하면 빌드가 거부됩니다
+- 플랫폼 이름이 마이너 버전까지 씁니다 — `platforms;android-37`(없음)이 아니라
+  **`android-37.2`**. 빌드 파일에서는 `compileSdk = 37` 과 `compileSdkMinor = 2` 로 나눠 적습니다
+- 지금 androidx 스택이 **compileSdk 37 이상**을 요구합니다. 36 으로는 15개 의존성이 거부합니다
 
 ---
 
