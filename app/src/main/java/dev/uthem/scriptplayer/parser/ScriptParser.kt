@@ -364,47 +364,144 @@ private fun isEmphasisUnderscore(text: String, at: Int): Boolean {
 
 private val TERMINATORS = charArrayOf('.', '?', '!', '…')
 
+/** 정리된 글자 안의 반열린 구간 `[from, to)`. */
+private data class Span(val from: Int, val to: Int)
+
+/**
+ * TTS 엔진에 한 번에 넣을 글자 수 상한.
+ *
+ * 긴 입력에서 엔진이 불안정해진다. 넘으면 쉼표에서 보조 분할한다.
+ */
+private const val MAX_SENTENCE = 200
+
 /**
  * 한 줄을 문장으로 나눈다.
  *
- * 줄바꿈은 언제나 경계이므로 줄을 넘나드는 문장은 만들지 않는다. 종결부호는 **뒤에 공백이나
- * 줄 끝이 올 때만** 경계로 본다 — 그러지 않으면 소수점이나 약어에서 문장이 끊긴다.
+ * 줄바꿈은 언제나 경계이므로 줄을 넘나드는 문장은 만들지 않는다.
  */
-private fun splitLine(line: Cleaned): List<Piece> {
-    val pieces = mutableListOf<Piece>()
-    val text = line.text
-    var chunkStart = 0
+private fun splitLine(line: Cleaned): List<Piece> =
+    coarseSpans(line.text)
+        .mapNotNull { trimSpan(line.text, it) }
+        .flatMap { capLength(line.text, it) }
+        .mapNotNull { toPiece(line, it) }
 
-    text.forEachIndexed { at, char ->
-        if (char in TERMINATORS) {
-            val next = text.getOrNull(at + 1)
-            if (next == null || next.isWhitespace()) {
-                pieces.addTrimmed(line, chunkStart, at + 1)
-                chunkStart = at + 1
-            }
+/**
+ * 종결부호로 나눈다.
+ *
+ * 종결부호는 **뒤에 공백이나 줄 끝이 올 때만** 경계로 본다. 그러지 않으면 `3.14` 에서
+ * 끊겨 "삼 점" 하고 멈췄다가 "일사" 로 이어진다.
+ *
+ * 겹친 종결부호는 묶어서 한 번만 끊는다 — `정말인가요?!` 가 두 문장이 되지 않게.
+ */
+private fun coarseSpans(text: String): List<Span> {
+    val spans = mutableListOf<Span>()
+    var start = 0
+    var at = 0
+
+    while (at < text.length) {
+        if (text[at] !in TERMINATORS) {
+            at++
+            continue
         }
+        var runEnd = at
+        while (runEnd < text.length && text[runEnd] in TERMINATORS) runEnd++
+
+        val next = text.getOrNull(runEnd)
+        val isBoundary = (next == null || next.isWhitespace()) &&
+            !isEllipsis(text, at, runEnd) &&
+            !endsAbbreviation(text, at, runEnd)
+        if (isBoundary) {
+            spans += Span(start, runEnd)
+            start = runEnd
+        }
+        at = runEnd
     }
-    pieces.addTrimmed(line, chunkStart, text.length)
-    return pieces
+    if (start < text.length) spans += Span(start, text.length)
+    return spans
 }
 
 /**
- * 앞뒤 공백을 뗀 뒤 담는다.
+ * 말줄임표는 경계로 보지 않는다.
  *
- * 글자나 숫자가 하나도 없는 조각은 버린다. 기호만 남은 조각(구분선 잔해, 홀로 남은 마침표)을
- * 문장으로 세면 재생기가 소리 없는 자리에서 멈춰 있는 것처럼 보인다.
+ * `그런데... 그게 아니었습니다.` 를 끊으면 "그런데..." 가 1초짜리 조각으로 남는다.
+ * 반대로 안 끊어 문장이 길어지면 200자 상한이 받아 주므로, 안 끊는 쪽이 안전하다.
  */
-private fun MutableList<Piece>.addTrimmed(line: Cleaned, from: Int, to: Int) {
-    val text = line.text
-    var begin = from
-    var end = to
+private fun isEllipsis(text: String, from: Int, to: Int): Boolean =
+    text.substring(from, to).contains('…') ||
+        (to - from >= 2 && (from until to).all { text[it] == '.' })
+
+private val ABBREVIATIONS = setOf(
+    "e.g.", "i.e.", "vs.", "etc.", "cf.", "approx.",
+    "mr.", "mrs.", "ms.", "dr.", "prof.", "st.",
+    "no.", "fig.", "vol.", "ch.", "a.m.", "p.m.",
+)
+
+/** 마침표 하나로 끝나는 자리에서, 그 앞 낱말이 약어인지 본다. */
+private fun endsAbbreviation(text: String, runStart: Int, runEnd: Int): Boolean {
+    if (runEnd - runStart != 1 || text[runStart] != '.') return false
+    var tokenStart = runStart
+    while (tokenStart > 0 && !text[tokenStart - 1].isWhitespace()) tokenStart--
+    return text.substring(tokenStart, runEnd).lowercase() in ABBREVIATIONS
+}
+
+private fun trimSpan(text: String, span: Span): Span? {
+    var begin = span.from
+    var end = span.to
     while (begin < end && text[begin].isWhitespace()) begin++
     while (end > begin && text[end - 1].isWhitespace()) end--
-    if (begin >= end) return
+    return if (begin >= end) null else Span(begin, end)
+}
 
-    val content = text.substring(begin, end)
-    if (content.none { it.isLetterOrDigit() }) return
-    this += Piece(content, line.origin[begin]..line.origin[end - 1])
+/**
+ * 200자를 넘는 조각을 쉼표에서 나눈다.
+ *
+ * 쉼표가 없으면 공백에서, 그것도 없으면 글자 수로 자른다. 자를 데가 없다고 그냥 두면
+ * 엔진이 그 문장에서 통째로 실패해 소리가 빠진다 — 어색하게 끊기는 쪽이 낫다.
+ */
+private fun capLength(text: String, span: Span): List<Span> {
+    if (span.to - span.from <= MAX_SENTENCE) return listOf(span)
+
+    val spans = mutableListOf<Span>()
+    var start = span.from
+    while (span.to - start > MAX_SENTENCE) {
+        val limit = start + MAX_SENTENCE
+        val cut = cutAfter(text, start, limit, ',')
+            ?: cutAfter(text, start, limit, '，')
+            ?: cutAtWhitespace(text, start, limit)
+            ?: limit
+        spans += Span(start, cut)
+        start = cut
+    }
+    if (start < span.to) spans += Span(start, span.to)
+    return spans
+}
+
+/** [from, limit) 안의 마지막 [char] **다음** 자리. 쉼표는 앞 조각에 남긴다. */
+private fun cutAfter(text: String, from: Int, limit: Int, char: Char): Int? {
+    for (at in limit - 1 downTo from) {
+        if (text[at] == char && at + 1 > from) return at + 1
+    }
+    return null
+}
+
+private fun cutAtWhitespace(text: String, from: Int, limit: Int): Int? {
+    for (at in limit - 1 downTo from) {
+        if (text[at].isWhitespace() && at > from) return at
+    }
+    return null
+}
+
+/**
+ * 글자나 숫자가 하나도 없는 조각은 버린다.
+ *
+ * 기호만 남은 조각(구분선 잔해, 홀로 남은 마침표)을 문장으로 세면 재생기가 소리 없는
+ * 자리에서 멈춰 있는 것처럼 보인다.
+ */
+private fun toPiece(line: Cleaned, span: Span): Piece? {
+    val trimmed = trimSpan(line.text, span) ?: return null
+    val content = line.text.substring(trimmed.from, trimmed.to)
+    if (content.none { it.isLetterOrDigit() }) return null
+    return Piece(content, line.origin[trimmed.from]..line.origin[trimmed.to - 1])
 }
 
 /**
