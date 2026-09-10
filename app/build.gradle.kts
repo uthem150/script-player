@@ -4,6 +4,13 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.roborazzi)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.room)
+}
+
+room {
+    // 스키마를 저장소에 남긴다. 나중에 이주를 쓰게 되면 이 파일이 유일한 근거가 된다.
+    schemaDirectory("$projectDir/schemas")
 }
 
 android {
@@ -139,10 +146,15 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.ext.junit)
     testImplementation(platform(libs.androidx.compose.bom))
