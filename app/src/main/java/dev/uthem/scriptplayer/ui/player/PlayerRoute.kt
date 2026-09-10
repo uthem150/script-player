@@ -110,7 +110,18 @@ fun PlayerRoute(
             startWithinMs = progress.positionMs,
         )
 
-        val speakerVoices = assignVoices(script.speakers.map { it.id }, voices)
+        /*
+         * 지난번 배속을 그대로 이어 쓴다.
+         *
+         * 늘 1.5배로 듣는 사람이 대본마다 다시 누르는 것이 실제 불편이다.
+         */
+        active.setSpeed(container.settings.speed.value)
+
+        val speakerVoices = assignVoices(
+            speakerIds = script.speakers.map { it.id },
+            voices = voices,
+            preferred = container.settings.speakerVoices.value,
+        )
         val fallback = SynthesisRequest(text = "", voiceName = voices.first().name)
 
         SynthesisQueue(synthesizer)
@@ -193,7 +204,10 @@ fun PlayerRoute(
             )
         },
         onSeek = { session?.seekToOverall(it) },
-        onSpeed = { session?.setSpeed(it) },
+        onSpeed = { speed ->
+            session?.setSpeed(speed)
+            container.settings.setSpeed(speed)
+        },
         onTapWord = { sentenceIndex, charOffset ->
             val active = session ?: return@PlayerScreen
             val text = uiState.sentences.getOrNull(sentenceIndex)?.text ?: return@PlayerScreen

@@ -3,6 +3,7 @@ package dev.uthem.scriptplayer.ui.player
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.uthem.scriptplayer.ui.component.AppChip
+import dev.uthem.scriptplayer.ui.component.AppOutlinedButton
 import dev.uthem.scriptplayer.ui.theme.AppTheme
 import dev.uthem.scriptplayer.ui.theme.Radius
 import dev.uthem.scriptplayer.ui.theme.Space
@@ -162,35 +164,62 @@ private fun ScriptBody(
     val listState = rememberLazyListState()
 
     /*
-     * 현재 문장을 따라 스크롤한다.
+     * 손으로 스크롤하면 따라가기를 끈다.
      *
-     * 사용자가 손으로 스크롤하는 동안에는 따라가지 않는다 — 읽던 자리에서 화면이
-     * 끌려가면 아무것도 읽을 수 없다.
+     * 읽던 자리에서 화면이 끌려가면 아무것도 읽을 수 없다 — 앞 대목을 다시 훑어보는
+     * 중에 다음 문장으로 튀어 버리는 것이 특히 거슬린다.
+     *
+     * 자동 스크롤 자체도 `isScrollInProgress` 를 켜므로 그것만 보면 구분이 안 된다.
+     * 끌기 상호작용이 들어올 때만 끈다.
      */
-    LaunchedEffect(state.currentIndex, state.followCurrent) {
-        if (state.followCurrent && state.currentIndex in 0 until state.sentences.size) {
+    var following by remember(state.sentences) { mutableStateOf(true) }
+    LaunchedEffect(listState) {
+        listState.interactionSource.interactions.collect { interaction ->
+            if (interaction is DragInteraction.Start) following = false
+        }
+    }
+
+    LaunchedEffect(state.currentIndex, following) {
+        if (following && state.currentIndex in 0 until state.sentences.size) {
             listState.animateScrollToItem(
                 index = state.currentIndex,
-                // 현재 문장을 화면 위쪽 1/3 쯤에 둔다. 맨 위에 붙이면 다음 문장이 안 보인다
+                // 현재 문장을 화면 위쪽에 살짝 여유를 두고 둔다. 맨 위에 붙이면 앞 문장이 안 보인다
                 scrollOffset = -120,
             )
         }
     }
 
-    LazyColumn(
-        state = listState,
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = Space.x4, vertical = Space.x2),
-        verticalArrangement = Arrangement.spacedBy(Space.x2),
-    ) {
-        itemsIndexed(state.sentences, key = { index, _ -> index }) { index, sentence ->
-            SentenceRow(
-                text = sentence.text,
-                speakerLabel = sentence.speakerLabel,
-                isCurrent = index == state.currentIndex,
-                failed = index in state.failedSentences,
-                onTapOffset = { offset -> onTapWord(index, offset) },
-            )
+    Box(modifier = modifier) {
+        // 바깥 Box 가 자리(weight)를 받았으므로 여기서는 그 안을 채우기만 한다
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = Space.x4, vertical = Space.x2),
+            verticalArrangement = Arrangement.spacedBy(Space.x2),
+        ) {
+            itemsIndexed(state.sentences, key = { index, _ -> index }) { index, sentence ->
+                SentenceRow(
+                    text = sentence.text,
+                    speakerLabel = sentence.speakerLabel,
+                    isCurrent = index == state.currentIndex,
+                    failed = index in state.failedSentences,
+                    onTapOffset = { offset -> onTapWord(index, offset) },
+                )
+            }
+        }
+
+        // 따라가기가 꺼져 있을 때만 낸다. 늘 띄우면 본문을 가린다
+        if (!following) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = Space.x3),
+            ) {
+                AppOutlinedButton(
+                    text = "지금 읽는 곳으로",
+                    onClick = { following = true },
+                )
+            }
         }
     }
 }

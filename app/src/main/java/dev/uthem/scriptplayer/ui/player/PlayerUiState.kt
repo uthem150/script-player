@@ -17,12 +17,6 @@ data class PlayerUiState(
     val positionMs: Long = 0,
     val totalMs: Long = 0,
     val speed: Float = 1.0f,
-    /**
-     * 현재 문장을 따라 스크롤할지.
-     *
-     * 사용자가 손으로 스크롤하면 끈다 — 읽던 자리에서 화면이 끌려가면 아무것도 읽을 수 없다.
-     */
-    val followCurrent: Boolean = true,
 ) {
     val sentenceCount: Int get() = sentences.size
 }

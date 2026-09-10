@@ -2,6 +2,7 @@ package dev.uthem.scriptplayer
 
 import android.app.Application
 import android.content.Context
+import dev.uthem.scriptplayer.data.AppSettings
 import dev.uthem.scriptplayer.data.AudioCache
 import dev.uthem.scriptplayer.data.ScriptDatabase
 import dev.uthem.scriptplayer.data.ScriptRepository
@@ -24,6 +25,8 @@ class AppContainer(private val context: Context) {
      * 된다(실측에서 10분 대본이 18초였다). 사용자 자료가 아니므로 백업 대상도 아니다.
      */
     val audioCache: AudioCache by lazy { AudioCache(File(context.cacheDir, "audio")) }
+
+    val settings: AppSettings by lazy { AppSettings(context) }
 }
 
 class ScriptPlayerApp : Application() {

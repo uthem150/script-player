@@ -44,7 +44,7 @@
 
 ## 3. 화면
 
-보관함과 재생기까지 만들어졌습니다. 설정 화면이 만들어지는 대로 이 표에 붙습니다.
+화면이 전부 모였습니다. 아래 사진은 모두 통과한 테스트의 산출물입니다.
 
 <!-- SCREENS:BEGIN -->
 
@@ -57,6 +57,7 @@
 | **새 대본** | <img src="app/screenshots/add-script-light.png" width="240" alt="새 대본 밝게"> | <img src="app/screenshots/add-script-dark.png" width="240" alt="새 대본 어둡게"> |
 | **새 대본 · 읽을 문장 없음** | <img src="app/screenshots/add-error-light.png" width="240" alt="새 대본 · 읽을 문장 없음 밝게"> | <img src="app/screenshots/add-error-dark.png" width="240" alt="새 대본 · 읽을 문장 없음 어둡게"> |
 | **공유 받기** | <img src="app/screenshots/share-light.png" width="240" alt="공유 받기 밝게"> | <img src="app/screenshots/share-dark.png" width="240" alt="공유 받기 어둡게"> |
+| **설정** | <img src="app/screenshots/settings-light.png" width="240" alt="설정 밝게"> | <img src="app/screenshots/settings-dark.png" width="240" alt="설정 어둡게"> |
 | **목소리 없음** | <img src="app/screenshots/no-voice-light.png" width="240" alt="목소리 없음 밝게"> | <img src="app/screenshots/no-voice-dark.png" width="240" alt="목소리 없음 어둡게"> |
 | **컴포넌트** | <img src="app/screenshots/component-light.png" width="240" alt="컴포넌트 밝게"> | <img src="app/screenshots/component-dark.png" width="240" alt="컴포넌트 어둡게"> |
 | **색 토큰** | <img src="app/screenshots/color-light.png" width="240" alt="색 토큰 밝게"> | <img src="app/screenshots/color-dark.png" width="240" alt="색 토큰 어둡게"> |
@@ -99,7 +100,7 @@ Play Store 를 거치지 않고 APK 를 직접 설치합니다.
 ```bash
 ./gradlew check                 # 유닛 테스트 + 스크린샷 회귀 + Android Lint
 ./gradlew recordRoborazziDebug  # 기준 이미지 다시 찍기 (화면을 의도적으로 바꿨을 때)
-./gradlew updateReadme          # 다시 찍고 위 화면 표까지 갱신
+./gradlew updateReadme          # 찍혀 있는 기준으로 위 화면 표 갱신 (record 와 함께 돌릴 것)
 ```
 
 스크린샷은 Robolectric 이 **JVM 에서** 렌더하므로 기기도 에뮬레이터도 필요 없습니다.
@@ -107,6 +108,10 @@ Play Store 를 거치지 않고 APK 를 직접 설치합니다.
 
 `updateReadme` 와 `check` 는 **따로 돌려야 합니다.** 한 번에 부르면 유닛 테스트가 한 번만
 도는데 그때 검증 모드로 돌아, 방금 다시 찍을 화면을 옛 기준과 견주다 실패합니다.
+
+`updateReadme` 는 찍는 일을 하지 않습니다. 화면을 바꿨으면 `recordRoborazziDebug` 를 먼저
+돌리세요 — 두 일을 한 태스크에 묶었더니 Gradle 이 기준 이미지를 오래된 산출물로 보고
+지우는데 정작 다시 찍지는 않는 일이 있었습니다.
 
 ### 걸려 넘어질 자리
 

@@ -87,15 +87,24 @@ private val readmeScreens = listOf(
     Triple("새 대본", "add-script-light.png", "add-script-dark.png"),
     Triple("새 대본 · 읽을 문장 없음", "add-error-light.png", "add-error-dark.png"),
     Triple("공유 받기", "share-light.png", "share-dark.png"),
+    Triple("설정", "settings-light.png", "settings-dark.png"),
     Triple("목소리 없음", "no-voice-light.png", "no-voice-dark.png"),
     Triple("컴포넌트", "component-light.png", "component-dark.png"),
     Triple("색 토큰", "color-light.png", "color-dark.png"),
     Triple("글자 눈금", "type-light.png", "type-dark.png"),
 )
 
+/*
+ * 찍는 일과 README 를 쓰는 일을 나눈다.
+ *
+ * 처음에 `recordRoborazziDebug` 에 의존하게 뒀더니, Gradle 이 그 태스크의 산출물을
+ * 오래된 것으로 보고 지웠는데 태스크는 UP-TO-DATE 라 다시 쓰지 않아, 있던 기준 이미지가
+ * 사라진 채로 README 를 쓰려 했다. 한 태스크가 한 가지만 하게 하면 이 얽힘이 없다.
+ *
+ * 함께 돌릴 때: `./gradlew recordRoborazziDebug updateReadme`
+ */
 tasks.register("updateReadme") {
-    description = "스크린샷을 다시 찍고 README 의 화면 블록을 갱신한다"
-    dependsOn("recordRoborazziDebug")
+    description = "이미 찍혀 있는 기준 이미지로 README 의 화면 블록을 갱신한다"
 
     // 설정 캐시를 위해 Project 를 doLast 안에서 건드리지 않는다 — File 만 미리 붙잡는다.
     val shotsDir = layout.projectDirectory.dir("screenshots").asFile

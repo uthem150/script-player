@@ -70,13 +70,33 @@ fun List<VoiceInfo>.offlineKorean(): List<VoiceInfo> =
  * 주는 것이 기본이다. 화자가 음성보다 많으면 음성을 돌려 쓰면서 음높이로 갈라 준다 —
  * 같은 목소리 같은 높이로 두 사람을 읽으면 대담이 혼잣말처럼 들린다.
  */
-fun assignVoices(speakerIds: List<String>, voices: List<VoiceInfo>): Map<String, SynthesisRequest> {
+fun assignVoices(
+    speakerIds: List<String>,
+    voices: List<VoiceInfo>,
+    /**
+     * 사용자가 자리별로 정해 둔 음성 이름.
+     *
+     * 비어 있거나 이 기기에 없는 이름이면 자동 배정으로 넘어간다 — 폰을 바꾸면 음성
+     * 이름이 달라질 수 있고, 그때 설정에 남은 옛 이름 때문에 소리가 안 나면 안 된다.
+     */
+    preferred: List<String> = emptyList(),
+): Map<String, SynthesisRequest> {
     if (voices.isEmpty()) return emptyMap()
     val pitches = listOf(1.0f, 0.88f, 1.12f, 0.94f)
     return speakerIds.withIndex().associate { (index, id) ->
-        val voice = voices[index % voices.size]
-        // 음성을 한 바퀴 다 쓴 뒤부터 음높이를 바꾼다
-        val pitch = pitches[(index / voices.size) % pitches.size]
-        id to SynthesisRequest(text = "", voiceName = voice.name, pitch = pitch)
+        val chosen = preferred.getOrNull(index)
+            ?.takeIf { name -> voices.any { it.name == name } }
+
+        val request = if (chosen != null) {
+            SynthesisRequest(text = "", voiceName = chosen, pitch = 1.0f)
+        } else {
+            SynthesisRequest(
+                text = "",
+                voiceName = voices[index % voices.size].name,
+                // 음성을 한 바퀴 다 쓴 뒤부터 음높이를 바꾼다
+                pitch = pitches[(index / voices.size) % pitches.size],
+            )
+        }
+        id to request
     }
 }

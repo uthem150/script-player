@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import dev.uthem.scriptplayer.data.ScriptSummary
 import dev.uthem.scriptplayer.ui.component.AppButton
 import dev.uthem.scriptplayer.ui.component.AppCard
+import dev.uthem.scriptplayer.ui.component.AppOutlinedButton
 import dev.uthem.scriptplayer.ui.theme.AppTheme
 import dev.uthem.scriptplayer.ui.theme.Radius
 import dev.uthem.scriptplayer.ui.theme.Space
@@ -49,6 +50,7 @@ import dev.uthem.scriptplayer.ui.theme.Space
 fun LibraryScreen(
     state: LibraryUiState,
     onAdd: () -> Unit,
+    onOpenSettings: () -> Unit,
     onOpen: (ScriptSummary) -> Unit,
     onRename: (ScriptSummary) -> Unit,
     onDelete: (ScriptSummary) -> Unit,
@@ -73,7 +75,10 @@ fun LibraryScreen(
                 style = MaterialTheme.typography.headlineSmall,
                 color = AppTheme.colors.textPrimary,
             )
-            AppButton(text = "새 대본", onClick = onAdd)
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.x2)) {
+                AppOutlinedButton(text = "설정", onClick = onOpenSettings)
+                AppButton(text = "새 대본", onClick = onAdd)
+            }
         }
 
         when {
@@ -248,6 +253,7 @@ private fun LibraryPreview() {
         LibraryScreen(
             state = LibraryUiState(scripts = previewScripts(), loading = false),
             onAdd = {},
+            onOpenSettings = {},
             onOpen = {},
             onRename = {},
             onDelete = {},
@@ -262,6 +268,7 @@ private fun EmptyPreview() {
         LibraryScreen(
             state = LibraryUiState(loading = false),
             onAdd = {},
+            onOpenSettings = {},
             onOpen = {},
             onRename = {},
             onDelete = {},

@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -14,9 +15,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.uthem.scriptplayer.data.ThemeChoice
 import dev.uthem.scriptplayer.ui.library.AddScriptRoute
 import dev.uthem.scriptplayer.ui.library.LibraryRoute
 import dev.uthem.scriptplayer.ui.player.PlayerRoute
+import dev.uthem.scriptplayer.ui.settings.SettingsRoute
 import dev.uthem.scriptplayer.ui.share.ShareConfirmRoute
 import dev.uthem.scriptplayer.ui.theme.AppTheme
 
@@ -37,7 +41,21 @@ class MainActivity : ComponentActivity() {
         sharedText = intent?.plainTextToRead()
 
         setContent {
-            AppTheme {
+            val settings = appContainer.settings
+            val choice by settings.theme.collectAsStateWithLifecycle()
+            /*
+             * 사용자가 고른 테마가 시스템보다 먼저다.
+             *
+             * «시스템» 으로 두면 OS 를 따르고, 밝게·어둡게를 고르면 그것을 지킨다 —
+             * 폰 전체를 어둡게 쓰면서 이 앱만 밝게 보고 싶을 때가 있다.
+             */
+            AppTheme(
+                darkTheme = when (choice) {
+                    ThemeChoice.SYSTEM -> isSystemInDarkTheme()
+                    ThemeChoice.LIGHT -> false
+                    ThemeChoice.DARK -> true
+                },
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = AppTheme.colors.background,
@@ -85,6 +103,7 @@ private fun AppRoot(
     onSharedHandled: () -> Unit,
 ) {
     var addingScript by rememberSaveable { mutableStateOf(false) }
+    var showingSettings by rememberSaveable { mutableStateOf(false) }
     var playingScriptId by rememberSaveable { mutableStateOf<String?>(null) }
 
     val openScript = playingScriptId
@@ -100,6 +119,11 @@ private fun AppRoot(
             PlayerRoute(scriptId = openScript, onBack = { playingScriptId = null })
         }
 
+        showingSettings -> {
+            BackHandler { showingSettings = false }
+            SettingsRoute(onBack = { showingSettings = false })
+        }
+
         addingScript -> {
             // 뒤로 가기로 붙여넣기 화면을 닫는다. 없으면 앱이 통째로 닫힌다
             BackHandler { addingScript = false }
@@ -109,6 +133,7 @@ private fun AppRoot(
         else -> LibraryRoute(
             onOpenAdd = { addingScript = true },
             onOpenScript = { playingScriptId = it },
+            onOpenSettings = { showingSettings = true },
         )
     }
 }

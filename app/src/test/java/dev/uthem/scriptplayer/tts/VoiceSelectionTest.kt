@@ -1,5 +1,8 @@
 package dev.uthem.scriptplayer.tts
 
+import dev.uthem.scriptplayer.data.AppSettings
+import dev.uthem.scriptplayer.data.decodeSlots
+import dev.uthem.scriptplayer.data.encodeSlots
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -134,5 +137,70 @@ class VoiceSelectionTest {
     @Test
     fun `쓸 음성이 없으면 배정하지 않는다`() {
         assertTrue(assignVoices(listOf("s0"), emptyList()).isEmpty())
+    }
+
+    @Test
+    fun `사용자가 정한 음성을 그 자리에 쓴다`() {
+        val voices = listOf(voice("v1"), voice("v2"), voice("v3"))
+
+        val assigned = assignVoices(
+            speakerIds = listOf("s0", "s1"),
+            voices = voices,
+            preferred = listOf("v3", "v1"),
+        )
+
+        assertEquals("v3", assigned["s0"]?.voiceName)
+        assertEquals("v1", assigned["s1"]?.voiceName)
+        // 손으로 정한 자리는 음높이를 건드리지 않는다 — 고른 목소리 그대로 들려야 한다
+        assertEquals(1.0f, assigned["s0"]?.pitch)
+    }
+
+    /**
+     * 폰을 바꾸면 음성 이름이 달라질 수 있다. 설정에 남은 옛 이름 때문에 소리가 안 나면
+     * 안 되므로, 이 기기에 없는 이름은 없는 것으로 보고 자동 배정으로 넘어간다.
+     */
+    @Test
+    fun `이 기기에 없는 음성 이름은 무시하고 자동으로 고른다`() {
+        val voices = listOf(voice("v1"), voice("v2"))
+
+        val assigned = assignVoices(
+            speakerIds = listOf("s0", "s1"),
+            voices = voices,
+            preferred = listOf("옛-폰-음성", "v2"),
+        )
+
+        assertEquals("v1", assigned["s0"]?.voiceName)
+        assertEquals("v2", assigned["s1"]?.voiceName)
+    }
+
+    @Test
+    fun `자리를 일부만 정해도 나머지는 자동으로 고른다`() {
+        val voices = listOf(voice("v1"), voice("v2"), voice("v3"))
+
+        val assigned = assignVoices(listOf("s0", "s1", "s2"), voices, preferred = listOf("v3"))
+
+        assertEquals("v3", assigned["s0"]?.voiceName)
+        assertEquals("v2", assigned["s1"]?.voiceName)
+        assertEquals("v3", assigned["s2"]?.voiceName)
+    }
+
+    @Test
+    fun `자리별 음성을 한 줄로 담고 되읽는다`() {
+        val slots = listOf("ko-kr-x-ism-local", "ko-kr-x-kob-local")
+
+        assertEquals(slots, decodeSlots(encodeSlots(slots)))
+    }
+
+    @Test
+    fun `빈 문자열을 되읽으면 빈 목록이다`() {
+        assertEquals(emptyList<String>(), decodeSlots(null))
+        assertEquals(emptyList<String>(), decodeSlots(""))
+    }
+
+    @Test
+    fun `자리 수 상한을 넘겨 담긴 것은 잘라 읽는다`() {
+        val tooMany = List(10) { "v$it" }
+
+        assertEquals(AppSettings.MAX_SPEAKER_SLOTS, decodeSlots(encodeSlots(tooMany)).size)
     }
 }
